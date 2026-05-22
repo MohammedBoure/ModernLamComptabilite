@@ -30,4 +30,4 @@ The objective is to turn the original report and the current spreadsheet-based w
 The [Arabic documentation](./docs/ar/README.md), [French documentation](./docs/fr/README.md), and [English documentation](./docs/en/README.md) are each divided into two main parts:
 
 - Business documentation for accounting, management, and HR.
-- Technical documentation for design and implementation.
+- Technical documentation split into general specifications and reserved implementation details.
