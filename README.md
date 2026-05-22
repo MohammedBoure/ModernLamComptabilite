@@ -1,30 +1,33 @@
-# ModernLam - Documentation du Logiciel de Comptabilite
+# ModernLam - Accounting Software Documentation
 
-يمثل هذا المستودع نقطة الدخول الرسمية لتوثيق وبناء برنامج محاسبة وتسيير داخلي لمخبر **ModernLam - Laboratoire d'Analyses Medicales**.
+This repository is the official entry point for documenting and building the internal accounting and management software for **ModernLam - Laboratoire d'Analyses Medicales**.
 
-التوثيق الفعلي منظم حسب اللغة. النسخ العربية والفرنسية والإنجليزية متوفرة.
+The documentation is organized by language. Arabic, French, and English versions are available.
 
 ## Documentation
 
-| Langue | Dossier | Statut |
+| Language | Directory | Status |
 | --- | --- | --- |
-| العربية | [docs/ar/README.md](./docs/ar/README.md) | النسخة الأساسية التفصيلية حاليا |
-| Francais | [docs/fr/README.md](./docs/fr/README.md) | نسخة فرنسية كاملة حاليا |
-| English | [docs/en/README.md](./docs/en/README.md) | نسخة إنجليزية كاملة حاليا |
+| Arabic | [docs/ar/README.md](./docs/ar/README.md) | Complete Arabic documentation |
+| French | [docs/fr/README.md](./docs/fr/README.md) | Complete French documentation |
+| English | [docs/en/README.md](./docs/en/README.md) | Complete English documentation |
 
-## Rapport Source
+## Source Report
 
-| Type | Fichier |
+| Type | File |
 | --- | --- |
-| Rapport principal | [Rapport Logiciel Comptabilite PDF](<./Rapport Logiciel Comptabilité_720ec9a3-2c6d-4f36-87b8-5ecbc04ea00e.pdf>) |
+| Main report | [Rapport Logiciel Comptabilite PDF](<./Rapport Logiciel Comptabilité_720ec9a3-2c6d-4f36-87b8-5ecbc04ea00e.pdf>) |
 
-## Objectif du Projet
+## Project Objective
 
-الهدف هو تحويل التقرير الأصلي والجداول الحالية إلى برنامج منظم يغطي:
+The objective is to turn the original report and the current spreadsheet-based workflow into structured software covering:
 
-- Comptabilite: caisse, coffre, fournisseurs, sous-traitants, conventions.
-- Etats: تقارير الموردين، الشيكات، السيارة، encaissement، والطباعة.
-- DRH: الموظفون، العقود، الحضور، العطل، والرواتب.
-- Administration: الصلاحيات، audit log، وغلق الأشهر.
+- Accounting: cash, safe, suppliers, subcontractors, conventions.
+- Reports: supplier statements, cheques, service vehicle tracking, encashment, and printing.
+- HR: employees, contracts, attendance, leave, and salaries.
+- Administration: permissions, audit log, and monthly closing.
 
-ينقسم [التوثيق العربي](./docs/ar/README.md)، [التوثيق الفرنسي](./docs/fr/README.md)، و[التوثيق الإنجليزي](./docs/en/README.md) إلى قسمين: توثيق وظيفي للمحاسبة والإدارة، وتوثيق تقني للتصميم والتنفيذ.
+The [Arabic documentation](./docs/ar/README.md), [French documentation](./docs/fr/README.md), and [English documentation](./docs/en/README.md) are each divided into two main parts:
+
+- Business documentation for accounting, management, and HR.
+- Technical documentation for design and implementation.
