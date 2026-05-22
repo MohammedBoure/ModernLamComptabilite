@@ -12,17 +12,18 @@
 
 | القسم | الرابط | الجمهور | المحتوى |
 | --- | --- | --- | --- |
-| توثيق المحاسبة والإدارة | [accounting/README.md](./accounting/README.md) | المحاسبة، الإدارة، الموارد البشرية | شرح وظيفي، سير العمل، البيانات المحفوظة، الشاشات، التقارير، المصطلحات. |
+| توثيق المحاسبة والإدارة | [accounting/README.md](./accounting/README.md) | المحاسبة، الإدارة، الموارد البشرية | توثيق عادي، توثيق محاسبي تقني، وتوثيق شكل الواجهة. |
 | التوثيق التقني | [technical/README.md](./technical/README.md) | التصميم، البرمجة، الصيانة | مواصفات الواجهات، قاعدة البيانات، القواعد، الصلاحيات، الطباعة، خطة التنفيذ. |
 
 ## ترتيب القراءة المرجعي
 
 | الترتيب | القسم | الغرض |
 | --- | --- | --- |
-| 1 | [accounting/README.md](./accounting/README.md) | فهم البرنامج من منظور العمل المحاسبي والإداري. |
-| 2 | [accounting/03-data-tables.md](./accounting/03-data-tables.md) | معرفة البيانات التي سيتم حفظها في كل جزء. |
-| 3 | [technical/README.md](./technical/README.md) | الانتقال إلى التفاصيل التقنية عند الحاجة. |
-| 4 | [technical/08-data-model.md](./technical/08-data-model.md) | مرجع قاعدة البيانات الداخلي. |
+| 1 | [accounting/general/README.md](./accounting/general/README.md) | فهم البرنامج من منظور العمل المحاسبي والإداري. |
+| 2 | [accounting/accounting-technical/README.md](./accounting/accounting-technical/README.md) | معرفة البيانات والحسابات التي يعتمدها البرنامج. |
+| 3 | [accounting/ui/README.md](./accounting/ui/README.md) | معرفة شكل الواجهة وتنظيم العناصر داخل الشاشات. |
+| 4 | [technical/README.md](./technical/README.md) | الانتقال إلى التفاصيل التقنية عند الحاجة. |
+| 5 | [technical/08-data-model.md](./technical/08-data-model.md) | مرجع قاعدة البيانات الداخلي. |
 
 ## ملاحظات تنظيمية
 
