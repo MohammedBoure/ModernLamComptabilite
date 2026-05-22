@@ -13,7 +13,25 @@
 | التقرير الرئيسي | [Rapport Logiciel Comptabilite PDF](<./Rapport Logiciel Comptabilité_720ec9a3-2c6d-4f36-87b8-5ecbc04ea00e.pdf>) | يحتوي على الجداول، الوحدات، المعادلات، وملاحظات الدمج المطلوبة. |
 | فهرس تقارير docs | [docs/README.md](./docs/README.md) | مكان مخصص لروابط التقارير والوثائق الإضافية التي ستضاف لاحقا داخل `docs/`. |
 
-> حاليا يوجد تقرير PDF واحد فقط في جذر المشروع. عند إضافة تقارير أخرى داخل `docs/` يجب تحديث فهرس `docs/README.md` وهذا القسم.
+> حاليا يوجد تقرير PDF واحد فقط في جذر المشروع. تم تفصيله إلى ملفات توثيق شاملة داخل `docs/`.
+
+## التوثيق التفصيلي
+
+تم تقسيم مواصفات البرنامج إلى عدة ملفات حتى تكون قابلة للمراجعة والتنفيذ:
+
+- [Vision generale](./docs/01-product-overview.md)
+- [Navigation et structure des ecrans](./docs/02-navigation-and-layout.md)
+- [Tableau de bord](./docs/03-dashboard.md)
+- [Interfaces Comptabilite](./docs/04-comptabilite-interfaces.md)
+- [Interfaces Etats](./docs/05-etats-interfaces.md)
+- [Interfaces DRH](./docs/06-drh-interfaces.md)
+- [Workflows fonctionnels](./docs/07-workflows.md)
+- [Modele de donnees](./docs/08-data-model.md)
+- [Regles metier et calculs](./docs/09-business-rules.md)
+- [Permissions et audit](./docs/10-permissions-and-audit.md)
+- [Reporting et impression](./docs/11-reporting-and-printing.md)
+- [Plan d'implementation](./docs/12-implementation-roadmap.md)
+- [Questions ouvertes](./docs/13-open-questions.md)
 
 ## فكرة البرنامج
 
