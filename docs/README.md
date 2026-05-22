@@ -7,7 +7,7 @@
 | Langue | Dossier | Statut |
 | --- | --- | --- |
 | العربية | [ar/README.md](./ar/README.md) | النسخة الأساسية التفصيلية حاليا |
-| Francais | [fr/README.md](./fr/README.md) | مساحة مخصصة للترجمة الفرنسية لاحقا |
+| Francais | [fr/README.md](./fr/README.md) | نسخة فرنسية كاملة حاليا |
 | English | [en/README.md](./en/README.md) | مساحة مخصصة للترجمة الإنجليزية لاحقا |
 
 ## Rapport Source
