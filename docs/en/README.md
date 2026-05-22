@@ -1,13 +1,13 @@
 # English Documentation - ModernLam Accounting Software
 
-The English documentation will be developed later from the Arabic documentation.
+The English documentation is reserved for a later translation phase based on the Arabic documentation.
 
-For now, the complete documentation is available here:
+The currently maintained complete documentation is available here:
 
 - [Arabic documentation](../ar/README.md)
 
 ## Status
 
-- Current version: placeholder
+- Current version: reserved space
 - Planned translation source: `docs/ar`
-- Current priority: develop and stabilize the Arabic documentation
+- Current documentation priority: stabilize the Arabic documentation

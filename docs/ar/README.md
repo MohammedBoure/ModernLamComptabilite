@@ -1,6 +1,6 @@
 # التوثيق العربي - ModernLam Comptabilite
 
-هذا هو الفهرس المحلي للتوثيق العربي. النسخة العربية هي النسخة الأساسية التي سنطورها حاليا، ثم نستعملها لاحقا كأساس للترجمة إلى الفرنسية والإنجليزية.
+يجمع الفهرس المحلي التوثيق العربي الخاص ببرنامج ModernLam Comptabilite. النسخة العربية هي النسخة التفصيلية الأساسية حاليا، وتشكل مرجعا لاحقا للترجمة إلى الفرنسية والإنجليزية.
 
 ## التقرير المرجعي
 
@@ -26,17 +26,22 @@
 | [12-implementation-roadmap.md](./12-implementation-roadmap.md) | خطة تنفيذ مرحلية من MVP إلى نسخة كاملة. |
 | [13-open-questions.md](./13-open-questions.md) | الأسئلة التي يجب تأكيدها قبل البرمجة النهائية. |
 
-## طريقة القراءة المقترحة
+## ترتيب القراءة المرجعي
 
-1. ابدأ بـ [01-product-overview.md](./01-product-overview.md) لفهم المنتج.
-2. اقرأ [02-navigation-and-layout.md](./02-navigation-and-layout.md) لفهم شكل البرنامج والتنقل.
-3. راجع [04-comptabilite-interfaces.md](./04-comptabilite-interfaces.md)، [05-etats-interfaces.md](./05-etats-interfaces.md)، و[06-drh-interfaces.md](./06-drh-interfaces.md) لفهم الواجهات.
-4. استعمل [07-workflows.md](./07-workflows.md) لفهم سير العمل اليومي والشهري.
-5. استعمل [08-data-model.md](./08-data-model.md) و[09-business-rules.md](./09-business-rules.md) عند بداية التصميم البرمجي.
-6. اجمع الإجابات على [13-open-questions.md](./13-open-questions.md) قبل تثبيت الحسابات النهائية.
+| الترتيب | الملف | الغرض |
+| --- | --- | --- |
+| 1 | [01-product-overview.md](./01-product-overview.md) | فهم المنتج وحدوده ومستخدميه. |
+| 2 | [02-navigation-and-layout.md](./02-navigation-and-layout.md) | فهم بنية البرنامج والتنقل العام. |
+| 3 | [04-comptabilite-interfaces.md](./04-comptabilite-interfaces.md) | فهم واجهات المحاسبة الأساسية. |
+| 4 | [05-etats-interfaces.md](./05-etats-interfaces.md) | فهم واجهات التقارير والحالات. |
+| 5 | [06-drh-interfaces.md](./06-drh-interfaces.md) | فهم واجهات الموارد البشرية. |
+| 6 | [07-workflows.md](./07-workflows.md) | فهم سير العمل اليومي والشهري. |
+| 7 | [08-data-model.md](./08-data-model.md) | مرجع تصميم قاعدة البيانات. |
+| 8 | [09-business-rules.md](./09-business-rules.md) | مرجع القواعد الحسابية والمنطقية. |
+| 9 | [13-open-questions.md](./13-open-questions.md) | قائمة القرارات التي تحتاج تأكيدا قبل تثبيت الحسابات النهائية. |
 
 ## ملاحظات تنظيمية
 
-- أي تغيير في القواعد الحسابية يجب تحديثه في [09-business-rules.md](./09-business-rules.md).
-- أي تغيير في شاشة يجب تحديثه في ملف الواجهات المناسب.
-- أي قرار جديد من الإدارة يجب أن ينعكس في ملف الأسئلة المفتوحة أو في ملف القواعد.
+- أي تغيير في القواعد الحسابية يتطلب تحديث [09-business-rules.md](./09-business-rules.md).
+- أي تغيير في شاشة يتطلب تحديث ملف الواجهات المناسب.
+- أي قرار إداري جديد يجب أن ينعكس في ملف الأسئلة المفتوحة أو في ملف القواعد.

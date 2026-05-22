@@ -1,6 +1,6 @@
 # 04 - Interfaces Comptabilite
 
-هذا الملف يفصل واجهات وحدة المحاسبة: Cloture de Caisse, Caisse, Coffre, Profitabilite, Fournisseurs, Sous-Traitants, Conventions, Presence, Salaires.
+توثق هذه الوثيقة واجهات وحدة المحاسبة: Cloture de Caisse, Caisse, Coffre, Profitabilite, Fournisseurs, Sous-Traitants, Conventions, Presence, Salaires.
 
 ## 04.1 Cloture de Caisse
 
@@ -267,7 +267,7 @@ Tabs مقترحة:
 
 - `Reste = Montant - Versement`
 - `Mode Paiement` مطلوب إذا كان `Versement > 0`.
-- يمكن أن تكون هناك عدة versements لنفس السجل، لذلك يفضل تخزين الدفعات في جدول منفصل وربطها بالسجل الأصلي.
+- يمكن أن تكون هناك عدة versements لنفس السجل، لذلك يعتمد التصميم المقترح على تخزين الدفعات في جدول منفصل وربطها بالسجل الأصلي.
 
 ## 04.6 Presence
 

@@ -1,14 +1,14 @@
 # Documentation ModernLam
 
-هذا المجلد يجمع التوثيق حسب اللغة. الملف الرئيسي في جذر المشروع يوجه إلى هذه المسارات، وهذا الملف يبقى كفهرس سريع داخل `docs`.
+يجمع مجلد `docs` التوثيق حسب اللغة. الملف الرئيسي في جذر المشروع يوجه إلى هذه المسارات، ويعمل هذا الملف كفهرس سريع داخل `docs`.
 
 ## Langues
 
 | Langue | Dossier | Statut |
 | --- | --- | --- |
-| العربية | [ar/README.md](./ar/README.md) | النسخة الأساسية الحالية |
-| Francais | [fr/README.md](./fr/README.md) | Placeholder إلى حين الترجمة |
-| English | [en/README.md](./en/README.md) | Placeholder إلى حين الترجمة |
+| العربية | [ar/README.md](./ar/README.md) | النسخة الأساسية التفصيلية حاليا |
+| Francais | [fr/README.md](./fr/README.md) | مساحة مخصصة للترجمة الفرنسية لاحقا |
+| English | [en/README.md](./en/README.md) | مساحة مخصصة للترجمة الإنجليزية لاحقا |
 
 ## Rapport Source
 
