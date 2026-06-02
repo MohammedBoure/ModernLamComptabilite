@@ -62,6 +62,61 @@ function salaryTotal(row) {
   );
 }
 
+function nextAttendanceCode(currentCode) {
+  if (!currentCode) return dayCodes[0];
+  const index = dayCodes.indexOf(currentCode);
+  if (index === -1) return dayCodes[0];
+  return index === dayCodes.length - 1 ? "" : dayCodes[index + 1];
+}
+
+function setQuickAttendance(employeeId, date) {
+  if (isClosedPeriod()) {
+    showToast("Closed period is read-only.");
+    return;
+  }
+  const existing = state.attendance.find((row) => row.periodKey === currentPeriodKey() && row.employeeId === employeeId && row.date === date && row.status !== "Cancelled");
+  const nextCode = nextAttendanceCode(existing?.dayCode || "");
+  if (existing) {
+    existing.status = "Cancelled";
+    audit("Replace attendance", "attendance", existing.id, existing);
+  }
+  if (!nextCode) {
+    saveState();
+    showToast("Attendance cleared.");
+    render();
+    return;
+  }
+  addRecord("attendance", {
+    employeeId,
+    date,
+    dayCode: nextCode,
+    note: "Quick grid entry",
+    status: "Validated",
+  });
+}
+
+function updateSalaryStatus(recordId, status) {
+  if (isClosedPeriod()) {
+    showToast("Closed period is read-only.");
+    return;
+  }
+  const row = state.salaryReports.find((item) => item.id === recordId);
+  if (!row) {
+    showToast("Salary row not found.");
+    return;
+  }
+  if (!salaryStatuses.includes(status)) {
+    showToast("Unknown salary status.");
+    return;
+  }
+  const before = { ...row };
+  row.status = status;
+  audit("Update salary status", "salaryReports", row.id, row, before);
+  saveState();
+  showToast(`Salary marked ${status}.`);
+  render();
+}
+
 function requireOpenPeriod(formId) {
   const periodScopedForms = new Set([
     "cashExpense",
@@ -331,6 +386,10 @@ function handleSubmit(event) {
   }
 
   if (formId === "attendance") {
+    if (!dayCodes.includes(data.dayCode)) {
+      showToast("Unknown attendance code.");
+      return;
+    }
     const existing = state.attendance.find((row) => row.periodKey === currentPeriodKey() && row.employeeId === data.employeeId && row.date === data.date && row.status !== "Cancelled");
     if (existing) {
       existing.status = "Cancelled";

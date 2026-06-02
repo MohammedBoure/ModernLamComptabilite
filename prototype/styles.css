@@ -631,13 +631,36 @@ tr:last-child td {
 }
 
 .attendance-grid table {
-  min-width: 980px;
+  min-width: 1320px;
 }
 
 .day-cell {
-  width: 44px;
-  min-width: 44px;
+  width: 58px;
+  min-width: 58px;
   text-align: center;
+  font-weight: 700;
+}
+
+.attendance-cell {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #f7fafc;
+  color: var(--text);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.attendance-cell:hover {
+  border-color: var(--accent);
+  background: #edf8f7;
+}
+
+.attendance-cell.empty {
+  color: var(--muted);
+  background: #fbfcfd;
+  border-style: dashed;
   font-weight: 700;
 }
 
@@ -660,6 +683,60 @@ tr:last-child td {
   padding: 10px 12px;
   border-radius: 6px;
   margin-bottom: 14px;
+}
+
+.salary-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.salary-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.salary-group legend {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.salary-group.additions {
+  border-top: 4px solid var(--ok);
+}
+
+.salary-group.deductions {
+  border-top: 4px solid var(--danger);
+}
+
+.salary-group.tracked {
+  border-top: 4px solid var(--violet);
+}
+
+.formula-note {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.formula-note strong {
+  color: var(--text);
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .toast {
@@ -800,6 +877,7 @@ tr:last-child td {
   .grid.three,
   .grid.four,
   .safe-ledger-grid,
+  .salary-form-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }

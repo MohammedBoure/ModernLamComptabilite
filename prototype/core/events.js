@@ -22,6 +22,16 @@ function handleClick(event) {
     cancelRecord(cancelButton.dataset.cancel, cancelButton.dataset.id);
     return;
   }
+  const attendanceQuick = event.target.closest("[data-attendance-quick]");
+  if (attendanceQuick) {
+    setQuickAttendance(attendanceQuick.dataset.attendanceEmployee, attendanceQuick.dataset.attendanceDate);
+    return;
+  }
+  const salaryStatusButton = event.target.closest("[data-salary-status]");
+  if (salaryStatusButton) {
+    updateSalaryStatus(salaryStatusButton.dataset.id, salaryStatusButton.dataset.salaryStatus);
+    return;
+  }
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
   if (action === "generate-salaries") generateSalaryDrafts();
