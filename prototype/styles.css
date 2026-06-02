@@ -771,6 +771,34 @@ tr:last-child td {
   margin: 0 0 4px;
 }
 
+.report-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.report-meta-grid div {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #fbfcfd;
+  display: grid;
+  gap: 3px;
+}
+
+.report-meta-grid span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.report-meta-grid strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
 .signature-row {
   display: flex;
   justify-content: flex-end;
@@ -871,6 +899,10 @@ tr:last-child td {
 
   .dashboard-stamp {
     justify-items: start;
+  }
+
+  .report-meta-grid {
+    grid-template-columns: 1fr;
   }
 
   .grid.two,

@@ -4,19 +4,28 @@ function exportCurrentReportCsv() {
   const dataset = getReportDataset();
   const rows = dataset.rows;
   const headers = dataset.columns.map((column) => column.label);
-  const lines = [headers.join(",")];
+  const generatedAt = new Date().toLocaleString();
+  const lines = [
+    "sep=,",
+    csvLine(["Report", dataset.title]),
+    csvLine(["Period", `${monthNames[state.selected.month - 1]} ${state.selected.year}`]),
+    csvLine(["Print Date", generatedAt]),
+    csvLine(["User", "Admin"]),
+    csvLine(["Total", dataset.total]),
+    "",
+    csvLine(headers),
+  ];
   rows.forEach((row, index) => {
     lines.push(
-      dataset.columns
-        .map((column) => {
-          const value = column.value ? column.value(row, index) : row[column.key];
-          return `"${String(value ?? "").replaceAll('"', '""')}"`;
-        })
-        .join(",")
+      csvLine(dataset.columns.map((column) => (column.value ? column.value(row, index) : row[column.key])))
     );
   });
-  download(`${activeReport}-${currentPeriodKey()}.csv`, lines.join("\n"), "text/csv");
+  download(`${activeReport}-${currentPeriodKey()}.csv`, `\uFEFF${lines.join("\r\n")}`, "text/csv;charset=utf-8");
   recordExport(dataset.title, "CSV");
+}
+
+function csvLine(values) {
+  return values.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",");
 }
 
 function recordExport(reportName, format) {
@@ -30,6 +39,7 @@ function recordExport(reportName, format) {
   });
   audit("Report export", "reportExports", reportName, { reportName, format, period: currentPeriodKey() });
   saveState();
+  render();
 }
 
 function download(filename, content, type = "application/json") {

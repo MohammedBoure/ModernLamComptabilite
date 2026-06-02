@@ -38,19 +38,19 @@
   } = M;
   function renderReports() {
     const reportOptions = [
-      ["encashment", "Encashment Statement"],
-      ["supplier", "Supplier Statement"],
-      ["supplierJournal", "Supplier Journal"],
-      ["partner", "Subcontractor Statement"],
       ["cashExpenses", "Cash Expenses"],
       ["differences", "Differences"],
       ["cashMovement", "Cash Movement"],
       ["safeMovement", "Safe Movement"],
       ["balance", "Monthly Balance"],
+      ["supplierJournal", "Supplier Journal"],
+      ["supplier", "Supplier Statement"],
+      ["partner", "Subcontractor Statement"],
       ["attendance", "Attendance"],
       ["salary", "Salary Report"],
       ["vehicle", "Service Vehicle"],
       ["cheque", "Cheque Statement"],
+      ["encashment", "Encashment Statement"],
       ["employees", "Employees"],
       ["contracts", "Contracts"],
       ["leave", "Leave"],
@@ -65,7 +65,7 @@
          <button class="icon-btn primary" type="button" title="Export Excel CSV" data-action="export-csv">E</button>`
       )}
       ${renderReportSourceForm()}
-      ${renderSection("Preview", renderReportPreview())}
+      ${renderSection("Preview", renderEnhancedReportPreview())}
       ${renderSection(
         "Export History",
         renderTable(
@@ -320,7 +320,6 @@
     }
     if (M.getActiveReport() === "cheque") {
       const cheques = scopedRows("cheques");
-      const currentAccount = sum(cheques, "entries") - sum(cheques, "exits");
       return {
         title: "Cheque Statement",
         columns: [
@@ -330,13 +329,14 @@
           { label: "Amount", key: "amount", amount: true, format: money },
           { label: "Entries", key: "entries", amount: true, format: money },
           { label: "Exits", key: "exits", amount: true, format: money },
+          { label: "Running Balance", value: () => "Tracked" },
           { label: "Designation", key: "designation" },
         ],
         rows: cheques,
-        total: `Total exits: ${money(sum(cheques, "exits"))}`,
+        total: `Total entries: ${money(sum(cheques, "entries"))}; total exits: ${money(sum(cheques, "exits"))}`,
         meta: [
           "Account amount on 31/12/previous year: prototype opening balance",
-          `Account amount on current date: ${money(currentAccount)}`,
+          "Running balance placeholder: final rule is still tracked and not fixed in this prototype.",
           `Year: ${state.selected.year}`,
         ],
       };
@@ -399,11 +399,76 @@
       ],
       rows: scopedRows("encashments"),
       total: `Total: ${money(sum(scopedRows("encashments"), "amount"))}`,
+      meta: [
+        `ModernLam: ${labInfo.name}`,
+        `NIF: ${labInfo.nif}`,
+        `RIP: ${labInfo.rip}`,
+        `Month/Year: ${monthNames[state.selected.month - 1]} ${state.selected.year}`,
+      ],
     };
+  }
+
+  function reportPeriodLabel() {
+    return `${monthNames[state.selected.month - 1]} ${state.selected.year}`;
+  }
+
+  function renderReportMetadata(dataset, printDate) {
+    const rows = [
+      { label: "Period", value: reportPeriodLabel() },
+      { label: "Print Date", value: printDate },
+      { label: "User", value: "Admin" },
+      { label: "Rows", value: dataset.rows.length },
+      { label: "Totals", value: dataset.total },
+    ];
+    return `
+      <div class="report-meta-grid">
+        ${rows.map((row) => `<div><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(row.value)}</strong></div>`).join("")}
+      </div>
+    `;
+  }
+
+  function renderEnhancedReportPreview() {
+    const dataset = reportDataset();
+    const printDate = new Date().toLocaleString();
+    const columns = dataset.columns.map((column) => ({
+      ...column,
+      value: column.value
+        ? (row) => {
+            const index = dataset.rows.indexOf(row);
+            return column.value(row, index);
+          }
+        : column.value,
+    }));
+    return `
+      <div class="report-preview">
+        <div class="report-title">
+          <div>
+            <h2>${escapeHtml(dataset.title)}</h2>
+            <span>${escapeHtml(labInfo.name)}</span><br>
+            <span>NIF: ${escapeHtml(labInfo.nif)} | RIP: ${escapeHtml(labInfo.rip)}</span>
+          </div>
+          <div>
+            <strong>${escapeHtml(reportPeriodLabel())}</strong><br>
+            <span>Print date: ${escapeHtml(printDate)}</span><br>
+            <span>User: Admin</span><br>
+            <span>Draft / Official prototype preview</span>
+          </div>
+        </div>
+        ${renderReportMetadata(dataset, printDate)}
+        ${dataset.meta ? `<div class="alert-list">${dataset.meta.map((item) => `<div class="alert-item info"><span>${escapeHtml(item)}</span></div>`).join("")}</div>` : ""}
+        ${renderTable(columns, dataset.rows, { empty: "No source data for this report." })}
+        <div class="signature-row">
+          <strong>${escapeHtml(dataset.total)}</strong>
+          <div class="signature-box">Stamp</div>
+          <div class="signature-box">Signature</div>
+        </div>
+      </div>
+    `;
   }
 
   function renderReportPreview() {
     const dataset = reportDataset();
+    const printDate = new Date().toLocaleString();
     const columns = dataset.columns.map((column) => ({
       ...column,
       value: column.value
