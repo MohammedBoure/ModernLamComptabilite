@@ -161,9 +161,43 @@ function hasActiveContract(employeeId) {
   return state.contracts.some((row) => row.employeeId === employeeId && row.status === "Active");
 }
 
+function unjustifiedCashDifferences(rows = scopedRows("cashClosures")) {
+  return rows.filter((row) => number(row.difference) !== 0 && !String(row.remark || "").trim());
+}
+
+function cashDifferenceStatement(rows = scopedRows("cashClosures")) {
+  const statement = Object.values(
+    rows.reduce((acc, row) => {
+      const user = row.user || "Unknown user";
+      const difference = number(row.difference);
+      acc[user] ||= {
+        user,
+        count: 0,
+        positiveDifference: 0,
+        negativeDifference: 0,
+        net: 0,
+      };
+      acc[user].count += 1;
+      if (difference > 0) acc[user].positiveDifference += difference;
+      if (difference < 0) acc[user].negativeDifference += difference;
+      acc[user].net += difference;
+      return acc;
+    }, {})
+  ).sort((a, b) => a.user.localeCompare(b.user));
+  if (statement.length < 2) return statement;
+  statement.push({
+    user: "Total",
+    count: sum(statement, "count"),
+    positiveDifference: sum(statement, "positiveDifference"),
+    negativeDifference: sum(statement, "negativeDifference"),
+    net: sum(statement, "net"),
+  });
+  return statement;
+}
+
 function closingChecklist() {
   const t = totals();
-  const unjustified = scopedRows("cashClosures").filter((row) => number(row.difference) !== 0 && !row.remark.trim()).length;
+  const unjustified = unjustifiedCashDifferences().length;
   const draftSalaries = scopedRows("salaryReports").filter((row) => row.status === "Draft").length;
   const reportsGenerated = state.reportExports.some((row) => row.period === currentPeriodKey());
   const balanceCalculated = t.globalRevenue !== 0 || t.expensesTotal !== 0;

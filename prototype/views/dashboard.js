@@ -28,6 +28,7 @@
     paymentTargetLabel,
     employeeFunction,
     latestUpdate,
+    unjustifiedCashDifferences,
     daysInMonth,
     pad,
     optionList,
@@ -58,7 +59,7 @@
     const t = totals();
     const period = getPeriod();
     const lastUpdate = latestUpdate() || "No activity yet";
-    const unjustified = scopedRows("cashClosures").filter((row) => number(row.difference) !== 0 && !row.remark.trim()).length;
+    const unjustified = unjustifiedCashDifferences().length;
     const draftSalaries = scopedRows("salaryReports").filter((row) => row.status === "Draft").length;
     const openSupplierRows = scopedRows("supplierTransactions").filter((row) => number(row.remainingAmount) > 0);
     const partialSuppliers = openSupplierRows.length;

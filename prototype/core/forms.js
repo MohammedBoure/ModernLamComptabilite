@@ -109,7 +109,7 @@ function handleSubmit(event) {
   if (formId === "cashClosure") {
     const difference = number(data.realAmount) - number(data.virtualAmount);
     if (difference !== 0 && !data.remark.trim()) {
-      showToast("Remark is required when a difference exists.");
+      showToast("Blocking: remark is required when a difference exists.");
       return;
     }
     addRecord("cashClosures", {
@@ -118,7 +118,7 @@ function handleSubmit(event) {
       realAmount: number(data.realAmount),
       virtualAmount: number(data.virtualAmount),
       difference,
-      remark: data.remark,
+      remark: data.remark.trim(),
       status: "Validated",
     });
   }

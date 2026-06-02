@@ -33,9 +33,22 @@ function handleClick(event) {
   if (action === "export-csv") exportCurrentReportCsv();
   if (action === "download-backup") downloadBackup();
   if (action === "reset-data") resetData();
+  if (action === "reset-cash-closing-filters") {
+    localStorage.removeItem(CASH_CLOSING_DATE_FILTER_KEY);
+    localStorage.removeItem(CASH_CLOSING_USER_FILTER_KEY);
+    render();
+  }
 }
 
 function handleChange(event) {
+  const cashClosingFilter = event.target.closest("[data-cash-closing-filter]");
+  if (cashClosingFilter) {
+    const key = cashClosingFilter.dataset.cashClosingFilter === "user" ? CASH_CLOSING_USER_FILTER_KEY : CASH_CLOSING_DATE_FILTER_KEY;
+    if (cashClosingFilter.value) localStorage.setItem(key, cashClosingFilter.value);
+    else localStorage.removeItem(key);
+    render();
+    return;
+  }
   const monthSelect = event.target.closest("[data-period-month]");
   const yearSelect = event.target.closest("[data-period-year]");
   if (monthSelect || yearSelect) {
