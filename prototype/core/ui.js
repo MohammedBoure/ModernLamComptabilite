@@ -81,7 +81,7 @@ function renderSection(title, body, actions = "") {
     <section class="section">
       <div class="section-head">
         <h2>${escapeHtml(title)}</h2>
-        <div class="section-actions">${actions}</div>
+        ${actions ? `<div class="section-actions">${actions}</div>` : ""}
       </div>
       <div class="section-body">${body}</div>
     </section>
@@ -155,7 +155,12 @@ function renderTopbar() {
         <strong>${escapeHtml(currentUserDisplayName())}</strong>
       </div>
       <div class="top-actions">
-        ${periodStatuses.map((status) => `<button class="icon-btn" type="button" title="Set ${escapeHtml(status)}" data-period-status="${escapeHtml(status)}">${escapeHtml(status[0])}</button>`).join("")}
+        ${periodStatuses
+          .map((status) => {
+            const tone = status === "Closed" ? " danger" : status === "Under review" ? " secondary" : "";
+            return `<button class="text-btn period-status-action${tone}" type="button" title="Set ${escapeHtml(status)}" data-period-status="${escapeHtml(status)}">${escapeHtml(status)}</button>`;
+          })
+          .join("")}
       </div>
     </header>
   `;
