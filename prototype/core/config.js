@@ -5,6 +5,10 @@ const VIEW_KEY = "modernlam.prototype.activeView";
 const REPORT_KEY = "modernlam.prototype.reportType";
 const CASH_CLOSING_DATE_FILTER_KEY = "modernlam.prototype.cashClosing.date";
 const CASH_CLOSING_USER_FILTER_KEY = "modernlam.prototype.cashClosing.user";
+const SUPPLIER_FILTER_KEY = "modernlam.prototype.suppliers.search";
+const SUPPLIER_CATEGORY_FILTER_KEY = "modernlam.prototype.suppliers.category";
+const SUPPLIER_STATUS_FILTER_KEY = "modernlam.prototype.suppliers.status";
+const PARTNER_TYPE_FILTER_KEY = "modernlam.prototype.partners.type";
 
 const labInfo = {
   name: "ModernLam - Laboratoire d'Analyses Medicales",

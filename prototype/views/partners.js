@@ -34,10 +34,35 @@
     statusPill,
     escapeHtml
   } = M;
+
+  function renderPartnerFilters(typeFilter) {
+    return renderSection(
+      "Filters",
+      `<div class="filter-bar">
+        <label>Type
+          <select data-partner-filter="type">
+            ${optionList([["", "All types"], ...partnerTypes.map((type) => [type, type])], typeFilter)}
+          </select>
+        </label>
+        <button class="text-btn" type="button" data-action="reset-partner-filters" title="Reset partner filters">Reset</button>
+      </div>`
+    );
+  }
+
   function renderPartners() {
+    const typeFilter = localStorage.getItem(PARTNER_TYPE_FILTER_KEY) || "";
+    const filteredPartners = scopedRows("partners").filter((row) => !typeFilter || row.type === typeFilter);
+    const visiblePartnerIds = new Set(filteredPartners.map((row) => row.id));
+    const filteredPayments = scopedRows("payments").filter((row) => row.targetType === "partner" && visiblePartnerIds.has(row.targetId));
+    const remainingTotal = sum(filteredPartners, "remainingBalance");
     return `
       ${renderHeader("Subcontractors & Conventions", "External partners, conventions, payments, and remaining balances.")}
       ${closedNotice()}
+      ${renderPartnerFilters(typeFilter)}
+      ${renderMetrics([
+        { label: "Filtered Remaining", value: money(remainingTotal), detail: typeFilter || "All partner types" },
+        { label: "Filtered Partners", value: filteredPartners.length, detail: "Visible rows" },
+      ])}
       <div class="grid two">
         ${renderForm(
           "Partner Operation",
@@ -58,7 +83,15 @@
           "Partner Payment",
           "partnerPayment",
           [
-            { name: "targetId", label: "Partner", type: "select", options: scopedRows("partners").map((row) => [row.id, `${row.name} - ${money(row.remainingBalance)} remaining`]), required: true },
+            {
+              name: "targetId",
+              label: "Partner",
+              type: "select",
+              options: scopedRows("partners")
+                .filter((row) => number(row.remainingBalance) > 0)
+                .map((row) => [row.id, `${row.name} - ${money(row.remainingBalance)} remaining`]),
+              required: true,
+            },
             { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
             { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
             { name: "paymentMode", label: "Mode", type: "select", options: paymentModes, required: true },
@@ -83,7 +116,7 @@
             { label: "Status", value: (row) => statusPill(row.status), html: true },
             { label: "Remarks", key: "remarks" },
           ],
-          scopedRows("partners"),
+          filteredPartners,
           { collection: "partners" }
         )
       )}
@@ -98,7 +131,7 @@
             { label: "Reference", key: "reference" },
             { label: "Note", key: "note" },
           ],
-          scopedRows("payments").filter((row) => row.targetType === "partner"),
+          filteredPayments,
           { collection: "payments" }
         )
       )}

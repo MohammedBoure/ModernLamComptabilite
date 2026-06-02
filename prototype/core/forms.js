@@ -188,15 +188,20 @@ function handleSubmit(event) {
 
   if (formId === "supplierTransaction") {
     const paidAmount = number(data.paidAmount);
+    const orderTotal = number(data.orderTotal);
     if (paidAmount > 0 && !data.paymentMode) {
       showToast("Payment mode is required when paid amount exists.");
+      return;
+    }
+    if (paidAmount > orderTotal) {
+      showToast("Paid amount cannot exceed order total.");
       return;
     }
     const record = {
       supplierId: data.supplierId,
       category: data.category,
       date: data.date,
-      orderTotal: number(data.orderTotal),
+      orderTotal,
       paidAmount,
       remainingAmount: 0,
       paymentMode: data.paymentMode,
@@ -255,14 +260,19 @@ function handleSubmit(event) {
 
   if (formId === "partner") {
     const payment = number(data.payment);
+    const amount = number(data.amount);
     if (payment > 0 && !data.paymentMode) {
       showToast("Payment mode is required when payment exists.");
+      return;
+    }
+    if (payment > amount) {
+      showToast("Payment cannot exceed remaining balance.");
       return;
     }
     const record = {
       type: data.type,
       name: data.name,
-      amount: number(data.amount),
+      amount,
       payment,
       receptionDate: data.receptionDate,
       paymentMode: data.paymentMode,

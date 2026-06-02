@@ -38,9 +38,39 @@ function handleClick(event) {
     localStorage.removeItem(CASH_CLOSING_USER_FILTER_KEY);
     render();
   }
+  if (action === "reset-supplier-filters") {
+    localStorage.removeItem(SUPPLIER_FILTER_KEY);
+    localStorage.removeItem(SUPPLIER_CATEGORY_FILTER_KEY);
+    localStorage.removeItem(SUPPLIER_STATUS_FILTER_KEY);
+    render();
+  }
+  if (action === "reset-partner-filters") {
+    localStorage.removeItem(PARTNER_TYPE_FILTER_KEY);
+    render();
+  }
 }
 
 function handleChange(event) {
+  const supplierFilter = event.target.closest("[data-supplier-filter]");
+  if (supplierFilter) {
+    const keys = {
+      supplier: SUPPLIER_FILTER_KEY,
+      category: SUPPLIER_CATEGORY_FILTER_KEY,
+      status: SUPPLIER_STATUS_FILTER_KEY,
+    };
+    const key = keys[supplierFilter.dataset.supplierFilter];
+    if (supplierFilter.value) localStorage.setItem(key, supplierFilter.value);
+    else localStorage.removeItem(key);
+    render();
+    return;
+  }
+  const partnerFilter = event.target.closest("[data-partner-filter]");
+  if (partnerFilter) {
+    if (partnerFilter.value) localStorage.setItem(PARTNER_TYPE_FILTER_KEY, partnerFilter.value);
+    else localStorage.removeItem(PARTNER_TYPE_FILTER_KEY);
+    render();
+    return;
+  }
   const cashClosingFilter = event.target.closest("[data-cash-closing-filter]");
   if (cashClosingFilter) {
     const key = cashClosingFilter.dataset.cashClosingFilter === "user" ? CASH_CLOSING_USER_FILTER_KEY : CASH_CLOSING_DATE_FILTER_KEY;
