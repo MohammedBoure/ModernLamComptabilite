@@ -106,6 +106,21 @@ textarea:disabled {
   flex: 1;
 }
 
+.current-user {
+  display: grid;
+  gap: 3px;
+  min-width: 148px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.current-user strong {
+  color: var(--text);
+  font-size: 13px;
+  text-transform: none;
+}
+
 .period-tools label,
 .toolbar-label {
   display: grid;
@@ -159,18 +174,23 @@ textarea:disabled {
 }
 
 .status-paid,
-.status-validated {
+.status-validated,
+.status-active,
+.status-ready {
   color: var(--ok);
   background: #eaf7ef;
 }
 
 .status-partial,
-.status-draft {
+.status-draft,
+.status-under-review {
   color: var(--warn);
   background: #fff5de;
 }
 
-.status-unpaid {
+.status-unpaid,
+.status-inactive,
+.status-blocking {
   color: var(--danger);
   background: #fff0ed;
 }

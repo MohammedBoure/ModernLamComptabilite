@@ -4,100 +4,49 @@
   const {
     state,
     monthNames,
-    supplierCategories,
-    paymentModes,
-    partnerTypes,
-    paymentStatuses,
-    salaryStatuses,
-    dayCodes,
     roles,
     renderHeader,
-    closedNotice,
     renderMetrics,
-    totals,
-    money,
     renderSection,
     renderTable,
-    scopedRows,
     renderForm,
-    defaultDate,
-    currentPeriodKey,
-    supplierName,
-    employeeName,
-    paymentTargetLabel,
-    employeeFunction,
     closingChecklist,
     documentationCoverage,
     coverageFollowUpTasks,
     openQuestions,
-    daysInMonth,
-    pad,
-    optionList,
-    number,
-    sum,
     statusPill,
-    escapeHtml
+    prototypeSettings,
+    currentUserDisplayName,
+    auditOperation,
+    currentPeriodKey,
+    escapeHtml,
   } = M;
+
   function renderAdmin() {
+    const settings = prototypeSettings();
+    const checklistRows = sortedClosingChecklist();
+    const blockers = checklistRows.filter((row) => !row.ok);
+    const period = state.periods.find((row) => `${row.year}-${String(row.month).padStart(2, "0")}` === currentPeriodKey());
+
     return `
       ${renderHeader(
         "Administration",
-        "Users, simplified permissions, audit log, backup, and browser-storage controls.",
+        "Prototype control center for users, permissions, periods, closing, audit, settings, backup, and browser-storage controls.",
         `<button class="text-btn secondary" type="button" data-action="download-backup" title="Download backup">B Backup</button>
          <button class="text-btn danger" type="button" data-action="reset-data" title="Reset prototype data">X Reset</button>`
       )}
-      ${renderForm(
-        "User",
-        "user",
-        [
-          { name: "username", label: "Username", required: true },
-          { name: "fullName", label: "Full Name", required: true },
-          { name: "role", label: "Role", type: "select", options: roles },
-          { name: "isActive", label: "Status", type: "select", options: [["true", "Active"], ["false", "Inactive"]], value: "true" },
-        ],
-        "Save user"
-      )}
-      ${renderSection(
-        "Users",
-        renderTable(
-          [
-            { label: "Username", key: "username" },
-            { label: "Full Name", key: "fullName" },
-            { label: "Role", key: "role" },
-            { label: "Active", value: (row) => (row.isActive ? "Yes" : "No") },
-            { label: "Last Login", value: (row) => (row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString() : "") },
-          ],
-          state.users,
-          { collection: "users" }
-        )
-      )}
-      ${renderSection(
-        "Accounting Periods",
-        renderTable(
-          [
-            { label: "Month", value: (row) => monthNames[row.month - 1] },
-            { label: "Year", key: "year" },
-            { label: "Status", value: (row) => statusPill(row.status), html: true },
-            { label: "Opened At", value: (row) => (row.openedAt ? new Date(row.openedAt).toLocaleString() : "") },
-            { label: "Opened By", key: "openedBy" },
-            { label: "Closed At", value: (row) => (row.closedAt ? new Date(row.closedAt).toLocaleString() : "") },
-            { label: "Closed By", key: "closedBy" },
-            { label: "Close Note", key: "closeNote" },
-          ],
-          state.periods
-        )
-      )}
-      ${renderSection(
-        "Monthly Closing Checklist",
-        renderTable(
-          [
-            { label: "Condition", key: "item" },
-            { label: "Status", value: (row) => statusPill(row.ok ? "Validated" : "Draft"), html: true },
-            { label: "Detail", key: "detail" },
-          ],
-          closingChecklist()
-        )
-      )}
+      ${renderMetrics([
+        { label: "Current User", value: currentUserDisplayName(), detail: "Prototype setting" },
+        { label: "Active Users", value: state.users.filter((row) => row.isActive).length, detail: `${state.users.length} total users` },
+        { label: "Period Status", value: period?.status || "", detail: `${monthNames[state.selected.month - 1]} ${state.selected.year}` },
+        { label: "Closing Blockers", value: blockers.length, detail: blockers.length ? "Review checklist" : "Ready to close", severity: blockers.length ? "blocking" : "info" },
+      ])}
+      ${renderPrototypeSettingsForm(settings)}
+      ${renderUserForm()}
+      ${renderSection("Users", renderUsersTable())}
+      ${renderSection("Accounting Periods", renderPeriodsTable(), renderPeriodActions())}
+      ${renderSection("Monthly Closing Checklist", renderClosingChecklist(checklistRows), renderPeriodActions())}
+      ${renderSection("Audit Log", renderAuditLog())}
       ${renderSection("Permissions Matrix", renderPermissionsMatrix())}
       ${renderSection(
         "Documentation Coverage",
@@ -135,22 +84,111 @@
           openQuestions()
         )
       )}
-      ${renderSection(
-        "Audit Log",
-        renderTable(
-          [
-            { label: "Date", value: (row) => new Date(row.createdAt).toLocaleString() },
-            { label: "User", key: "user" },
-            { label: "Action", key: "action" },
-            { label: "Entity", key: "entityType" },
-            { label: "Entity ID", key: "entityId" },
-            { label: "Reason", key: "reason" },
-          ],
-          state.auditLogs.slice(0, 80),
-          { empty: "No audit entries." }
-        )
-      )}
     `;
+  }
+
+  function renderPrototypeSettingsForm(settings) {
+    return renderForm(
+      "Prototype Settings",
+      "settings",
+      [
+        { name: "labName", label: "Lab Name", value: settings.labName, required: true, span: 2 },
+        { name: "nif", label: "NIF", value: settings.nif, required: true },
+        { name: "rip", label: "RIP", value: settings.rip, required: true },
+        { name: "currentUserDisplayName", label: "Current User Display Name", value: settings.currentUserDisplayName, required: true, span: 2 },
+      ],
+      "Save settings"
+    );
+  }
+
+  function renderUserForm() {
+    return renderForm(
+      "User",
+      "user",
+      [
+        { name: "username", label: "Username", required: true },
+        { name: "fullName", label: "Full Name", required: true },
+        { name: "role", label: "Role", type: "select", options: roles },
+        { name: "isActive", label: "Status", type: "select", options: [["true", "Active"], ["false", "Inactive"]], value: "true" },
+      ],
+      "Save user"
+    );
+  }
+
+  function renderUsersTable() {
+    return renderTable(
+      [
+        { label: "Username", key: "username" },
+        { label: "Full Name", key: "fullName" },
+        { label: "Role", key: "role" },
+        { label: "Status", value: (row) => statusPill(row.isActive ? "Active" : "Inactive"), html: true },
+        { label: "Last Login", value: (row) => (row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString() : "") },
+      ],
+      state.users,
+      { collection: "users" }
+    );
+  }
+
+  function renderPeriodsTable() {
+    return renderTable(
+      [
+        { label: "Month", value: (row) => monthNames[row.month - 1] },
+        { label: "Year", key: "year" },
+        { label: "Status", value: (row) => statusPill(row.status), html: true },
+        { label: "Opened At", value: (row) => formatDateTime(row.openedAt) },
+        { label: "Opened By", key: "openedBy" },
+        { label: "Closed At", value: (row) => formatDateTime(row.closedAt) },
+        { label: "Closed By", key: "closedBy" },
+        { label: "Reopened At", value: (row) => formatDateTime(row.reopenedAt) },
+        { label: "Reopened By", key: "reopenedBy" },
+        { label: "Close Note", key: "closeNote" },
+      ],
+      state.periods
+    );
+  }
+
+  function renderClosingChecklist(rows) {
+    return renderTable(
+      [
+        { label: "Priority", key: "priority" },
+        { label: "Condition", key: "item" },
+        { label: "Status", value: (row) => statusPill(row.ok ? "Ready" : "Blocking"), html: true },
+        { label: "Detail", key: "detail" },
+      ],
+      rows
+    );
+  }
+
+  function renderAuditLog() {
+    return renderTable(
+      [
+        { label: "Date", value: (row) => formatDateTime(row.createdAt) },
+        { label: "User", key: "user" },
+        { label: "Operation", value: (row) => statusPill(auditOperation(row)), html: true },
+        { label: "Action", key: "action" },
+        { label: "Entity", key: "entityType" },
+        { label: "Entity ID", key: "entityId" },
+        { label: "Old Values", value: (row) => shortValue(row.oldValues) },
+        { label: "New Values", value: (row) => shortValue(row.newValues) },
+        { label: "Reason", key: "reason" },
+      ],
+      state.auditLogs.slice(0, 120),
+      { empty: "No audit entries." }
+    );
+  }
+
+  function renderPeriodActions() {
+    return `
+      <button class="text-btn primary" type="button" data-period-status="Closed" title="Close selected month">Close</button>
+      <button class="text-btn" type="button" data-period-status="Under review" title="Mark selected month under review">Review</button>
+      <button class="text-btn" type="button" data-period-status="Open" title="Reopen selected month">Reopen</button>
+    `;
+  }
+
+  function sortedClosingChecklist() {
+    return closingChecklist()
+      .map((row) => ({ ...row, priority: row.ok ? "Ready" : "Blocker" }))
+      .sort((a, b) => Number(a.ok) - Number(b.ok) || a.item.localeCompare(b.item));
   }
 
   function renderPermissionsMatrix() {
@@ -187,6 +225,14 @@
     );
   }
 
+  function formatDateTime(value) {
+    return value ? new Date(value).toLocaleString() : "";
+  }
 
-  M.registerView('admin', renderAdmin);
+  function shortValue(value) {
+    const text = String(value || "");
+    return text.length > 80 ? `${text.slice(0, 77)}...` : text;
+  }
+
+  M.registerView("admin", renderAdmin);
 })();

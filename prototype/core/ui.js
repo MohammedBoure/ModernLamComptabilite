@@ -150,6 +150,10 @@ function renderTopbar() {
         </label>
         ${statusPill(period.status)}
       </div>
+      <div class="current-user">
+        <span>Current user</span>
+        <strong>${escapeHtml(currentUserDisplayName())}</strong>
+      </div>
       <div class="top-actions">
         ${periodStatuses.map((status) => `<button class="icon-btn" type="button" title="Set ${escapeHtml(status)}" data-period-status="${escapeHtml(status)}">${escapeHtml(status[0])}</button>`).join("")}
       </div>

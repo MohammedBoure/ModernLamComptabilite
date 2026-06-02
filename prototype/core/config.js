@@ -22,6 +22,13 @@ const labInfo = {
   rip: "RIP prototype",
 };
 
+const defaultPrototypeSettings = {
+  labName: labInfo.name,
+  nif: labInfo.nif,
+  rip: labInfo.rip,
+  currentUserDisplayName: "Admin",
+};
+
 const monthNames = [
   "January",
   "February",

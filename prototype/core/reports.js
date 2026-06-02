@@ -8,9 +8,12 @@ function exportCurrentReportCsv() {
   const lines = [
     "sep=,",
     csvLine(["Report", dataset.title]),
+    csvLine(["Lab", prototypeSettings().labName]),
+    csvLine(["NIF", prototypeSettings().nif]),
+    csvLine(["RIP", prototypeSettings().rip]),
     csvLine(["Period", `${monthNames[state.selected.month - 1]} ${state.selected.year}`]),
     csvLine(["Print Date", generatedAt]),
-    csvLine(["User", "Admin"]),
+    csvLine(["User", currentUserDisplayName()]),
     csvLine(["Total", dataset.total]),
     "",
     csvLine(headers),
@@ -34,7 +37,7 @@ function recordExport(reportName, format) {
     reportName,
     period: currentPeriodKey(),
     format,
-    generatedBy: "Admin",
+    generatedBy: currentUserDisplayName(),
     generatedAt: new Date().toISOString(),
   });
   audit("Report export", "reportExports", reportName, { reportName, format, period: currentPeriodKey() });

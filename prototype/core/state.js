@@ -20,6 +20,7 @@ function normalizeState(input) {
     const now = new Date();
     output.selected = { month: now.getMonth() + 1, year: now.getFullYear() };
   }
+  output.settings = { ...base.settings, ...(input?.settings || {}) };
   ensurePeriod(output.selected.month, output.selected.year, output);
   return output;
 }
@@ -48,7 +49,7 @@ function ensurePeriod(month, year, targetState = state) {
       year,
       status: "Open",
       openedAt: new Date().toISOString(),
-      openedBy: "Admin",
+      openedBy: targetState.settings?.currentUserDisplayName || defaultPrototypeSettings.currentUserDisplayName,
       closedAt: "",
       closedBy: "",
       closeNote: "",

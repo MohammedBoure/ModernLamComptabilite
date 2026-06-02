@@ -33,10 +33,36 @@ function employeeFunction(employeeId) {
   return employee ? employee.function : "";
 }
 
+function prototypeSettings() {
+  const settings = state.settings || {};
+  return {
+    labName: settings.labName || defaultPrototypeSettings.labName,
+    nif: settings.nif || defaultPrototypeSettings.nif,
+    rip: settings.rip || defaultPrototypeSettings.rip,
+    currentUserDisplayName: settings.currentUserDisplayName || defaultPrototypeSettings.currentUserDisplayName,
+  };
+}
+
+function currentUserDisplayName() {
+  return prototypeSettings().currentUserDisplayName;
+}
+
+function auditOperation(row) {
+  const action = String(row.action || "").toLowerCase();
+  if (action.includes("permission")) return "Permission change";
+  if (action.includes("reopening")) return "Reopening closed month";
+  if (action.includes("monthly closing") || action.includes("closing blocked")) return "Monthly closing";
+  if (action.includes("salary validation")) return "Salary validation";
+  if (action.includes("cancel")) return "Cancellation";
+  if (action.includes("update") || action.includes("replace") || action.includes("payment") || action.includes("settings")) return "Modification";
+  if (action.includes("create") || action.includes("seed") || action.includes("generate")) return "Creation";
+  return "Audit";
+}
+
 function audit(action, entityType, entityId, newValues = "", oldValues = "", reason = "") {
   state.auditLogs.unshift({
     id: id(),
-    user: "Admin",
+    user: currentUserDisplayName(),
     action,
     entityType,
     entityId,
@@ -360,9 +386,9 @@ function documentationCoverage() {
       source: "accounting/ui/02",
       area: "Current user and logout",
       requirement: "Top bar must show the current user and logout action.",
-      prototypeCoverage: "Users are managed in Administration, but no active session identity or logout control is rendered.",
-      status: "Missing",
-      followUp: "Add a browser-only active user selector/display and logout/reset-session action.",
+      prototypeCoverage: "Current user display name is managed in Prototype Settings, rendered in the top bar, used by audit logs, and printed in reports; logout is not implemented.",
+      status: "Partially Covered",
+      followUp: "Add a browser-only logout/reset-session action when session behavior is needed.",
     },
     {
       source: "accounting/ui/02",
@@ -496,7 +522,7 @@ function documentationCoverage() {
       source: "spec/10",
       area: "Permissions and audit",
       requirement: "Roles, permission matrix, audit log, protected closed month, sensitive operations, and reasons.",
-      prototypeCoverage: "Roles, users, matrix, audit log, and closed-period protection exist; permissions are not enforced per active user.",
+      prototypeCoverage: "Users, active/inactive status, documented permission matrix, categorized audit log, salary validation trace, closing/reopening trace, settings trace, and closed-period protection exist; permissions are not enforced per active user.",
       status: "Partially Covered",
       followUp: "Apply role-based UI disabling/hiding and require reasons for sensitive changes.",
     },
@@ -529,7 +555,7 @@ function documentationCoverage() {
 
 function coverageFollowUpTasks() {
   return [
-    ["High", "Current user and logout", "Add active browser session display, current user selector, and logout/reset-session action.", "Missing"],
+    ["Medium", "Logout/session control", "Add a browser-only logout/reset-session action if session behavior becomes part of the prototype.", "Planned"],
     ["High", "Filter bars", "Implement screen-specific search/status/category/supplier/employee filters with client-side row filtering.", "Missing"],
     ["High", "Closed month modification", "Create exceptional modification requests with mandatory reason, admin approval, audit trace, and recalculation marker.", "Missing"],
     ["Medium", "Interface states", "Add reusable loading state/skeleton so future async screens match the documented UI states.", "Missing"],

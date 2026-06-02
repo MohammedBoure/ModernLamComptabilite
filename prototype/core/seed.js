@@ -70,6 +70,7 @@ function seedState() {
   const supplierTransactionId = id();
   return {
     selected: { month, year },
+    settings: { ...defaultPrototypeSettings },
     periods: [
       {
         id: id(),
@@ -77,7 +78,7 @@ function seedState() {
         year,
         status: "Open",
         openedAt: now.toISOString(),
-        openedBy: "Admin",
+        openedBy: defaultPrototypeSettings.currentUserDisplayName,
         closedAt: "",
         closedBy: "",
         closeNote: "",
@@ -368,7 +369,7 @@ function seedState() {
     auditLogs: [
       {
         id: id(),
-        user: "Admin",
+        user: defaultPrototypeSettings.currentUserDisplayName,
         action: "Seed prototype data",
         entityType: "prototype",
         entityId: "initial",

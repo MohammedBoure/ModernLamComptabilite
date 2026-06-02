@@ -14,7 +14,7 @@ function setPeriodStatus(status) {
     const blockers = closingChecklist().filter((item) => !item.ok);
     if (blockers.length) {
       period.status = "Under review";
-      audit("Closing blocked", "accounting_periods", period.id, blockers, before, "Automatic closing checklist failed");
+      audit("Monthly closing blocked", "accounting_periods", period.id, blockers, before, "Automatic closing checklist failed");
       saveState();
       showToast(`Closing blocked: ${blockers.map((item) => item.item).join(", ")}.`);
       render();
@@ -24,10 +24,16 @@ function setPeriodStatus(status) {
   period.status = status;
   if (status === "Closed") {
     period.closedAt = new Date().toISOString();
-    period.closedBy = "Admin";
+    period.closedBy = currentUserDisplayName();
     period.closeNote = "Closed from prototype checklist.";
   }
-  audit("Set period status", "accounting_periods", period.id, period, before);
+  if (before.status === "Closed" && status !== "Closed") {
+    period.reopenedAt = new Date().toISOString();
+    period.reopenedBy = currentUserDisplayName();
+    period.reopenNote = "Reopened from prototype controls.";
+  }
+  const action = status === "Closed" ? "Monthly closing" : before.status === "Closed" ? "Reopening closed month" : "Set period status";
+  audit(action, "accounting_periods", period.id, period, before);
   saveState();
   showToast(`Period status set to ${status}.`);
   render();
@@ -111,7 +117,8 @@ function updateSalaryStatus(recordId, status) {
   }
   const before = { ...row };
   row.status = status;
-  audit("Update salary status", "salaryReports", row.id, row, before);
+  const action = status === "Validated" ? "Salary validation" : status === "Paid" ? "Salary payment" : "Update salary status";
+  audit(action, "salaryReports", row.id, row, before);
   saveState();
   showToast(`Salary marked ${status}.`);
   render();
@@ -524,13 +531,35 @@ function handleSubmit(event) {
   }
 
   if (formId === "user") {
-    addRecord("users", {
+    const saved = {
+      id: id(),
+      createdAt: new Date().toISOString(),
       username: data.username,
       fullName: data.fullName,
       role: data.role,
       isActive: data.isActive === "true",
       lastLoginAt: "",
-    });
+    };
+    state.users.push(saved);
+    audit("Create user", "users", saved.id, saved);
+    audit("Permission change", "users", saved.id, { username: saved.username, role: saved.role, isActive: saved.isActive }, "", "User role/status saved");
+    saveState();
+    showToast("Saved in browser storage.");
+    render();
+  }
+
+  if (formId === "settings") {
+    const before = { ...(state.settings || {}) };
+    state.settings = {
+      labName: data.labName.trim() || defaultPrototypeSettings.labName,
+      nif: data.nif.trim() || defaultPrototypeSettings.nif,
+      rip: data.rip.trim() || defaultPrototypeSettings.rip,
+      currentUserDisplayName: data.currentUserDisplayName.trim() || defaultPrototypeSettings.currentUserDisplayName,
+    };
+    audit("Update prototype settings", "prototype_settings", "settings", state.settings, before, "Prototype settings saved");
+    saveState();
+    showToast("Prototype settings saved.");
+    render();
   }
 }
 
