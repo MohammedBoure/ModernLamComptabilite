@@ -3,24 +3,24 @@
 function exportCurrentReportCsv() {
   const dataset = getReportDataset();
   const rows = dataset.rows;
-  const headers = dataset.columns.map((column) => column.label);
+  const headers = dataset.columns.map((column) => t(column.label));
   const generatedAt = new Date().toLocaleString();
   const lines = [
     "sep=,",
-    csvLine(["Report", dataset.title]),
-    csvLine(["Lab", prototypeSettings().labName]),
-    csvLine(["NIF", prototypeSettings().nif]),
-    csvLine(["RIP", prototypeSettings().rip]),
-    csvLine(["Period", `${monthNames[state.selected.month - 1]} ${state.selected.year}`]),
-    csvLine(["Print Date", generatedAt]),
-    csvLine(["User", currentUserDisplayName()]),
-    csvLine(["Total", dataset.total]),
+    csvLine([t("Report"), t(dataset.title)]),
+    csvLine([t("Lab"), prototypeSettings().labName]),
+    csvLine([t("NIF"), prototypeSettings().nif]),
+    csvLine([t("RIP"), prototypeSettings().rip]),
+    csvLine([t("Period"), `${t(monthNames[state.selected.month - 1])} ${state.selected.year}`]),
+    csvLine([t("Print Date"), generatedAt]),
+    csvLine([t("User"), currentUserDisplayName()]),
+    csvLine([t("Total"), t(dataset.total)]),
     "",
     csvLine(headers),
   ];
   rows.forEach((row, index) => {
     lines.push(
-      csvLine(dataset.columns.map((column) => (column.value ? column.value(row, index) : row[column.key])))
+      csvLine(dataset.columns.map((column) => t(column.value ? column.value(row, index) : row[column.key])))
     );
   });
   download(`${activeReport}-${currentPeriodKey()}.csv`, `\uFEFF${lines.join("\r\n")}`, "text/csv;charset=utf-8");

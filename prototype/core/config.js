@@ -3,6 +3,7 @@
 const STORE_KEY = "modernlam.prototype.v1";
 const VIEW_KEY = "modernlam.prototype.activeView";
 const REPORT_KEY = "modernlam.prototype.reportType";
+const LANGUAGE_KEY = "modernlam.prototype.language";
 const CASH_CLOSING_DATE_FILTER_KEY = "modernlam.prototype.cashClosing.date";
 const CASH_CLOSING_USER_FILTER_KEY = "modernlam.prototype.cashClosing.user";
 const SUPPLIER_FILTER_KEY = "modernlam.prototype.suppliers.search";

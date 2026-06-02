@@ -149,6 +149,10 @@ textarea:disabled {
   min-width: 0;
 }
 
+.language-tool select {
+  min-width: 118px;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

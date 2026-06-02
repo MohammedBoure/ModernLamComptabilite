@@ -157,6 +157,9 @@ function renderTopbar() {
         <label>Year
           <select data-period-year>${years.map((year) => `<option value="${year}"${year === state.selected.year ? " selected" : ""}>${year}</option>`).join("")}</select>
         </label>
+        <label class="language-tool">Language
+          <select data-language>${languages.map((language) => `<option value="${escapeHtml(language.code)}"${language.code === getActiveLanguage() ? " selected" : ""}>${escapeHtml(language.label)}</option>`).join("")}</select>
+        </label>
         ${statusPill(period.status)}
       </div>
       <div class="current-user">
@@ -204,4 +207,5 @@ function render() {
     </div>
     ${toast ? `<div class="toast">${escapeHtml(toast)}</div>` : ""}
   `;
+  translateDom(app);
 }

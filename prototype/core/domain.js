@@ -391,6 +391,14 @@ function documentationCoverage() {
       followUp: "Add a browser-only logout/reset-session action when session behavior is needed.",
     },
     {
+      source: "prototype UX, docs/en and docs/ar parity",
+      area: "Bilingual language support",
+      requirement: "Prototype screens and report previews should be usable in English and French without changing stored browser data.",
+      prototypeCoverage: "Top-bar language selector, localStorage language preference, DOM translation pass, and translated CSV metadata are implemented for shell, views, reports, and print preview.",
+      status: "Covered",
+      followUp: "Keep the translation dictionary updated whenever new screens, reports, or enum labels are added.",
+    },
+    {
       source: "accounting/ui/02",
       area: "Filter bars",
       requirement: "Screens should expose month/year/status/search/category/supplier/employee filters where relevant.",

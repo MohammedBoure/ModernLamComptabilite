@@ -74,6 +74,11 @@ function handleClick(event) {
 }
 
 function handleChange(event) {
+  const languageSelect = event.target.closest("[data-language]");
+  if (languageSelect) {
+    setLanguage(languageSelect.value);
+    return;
+  }
   const supplierFilter = event.target.closest("[data-supplier-filter]");
   if (supplierFilter) {
     const keys = {
