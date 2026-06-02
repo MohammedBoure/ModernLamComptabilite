@@ -84,6 +84,18 @@
           ],
           "Save leave"
         )}
+        ${renderForm(
+          "Document",
+          "document",
+          [
+            { name: "employeeId", label: "Employee", type: "select", options: employeeOptions, required: true },
+            { name: "documentType", label: "Type", type: "select", options: ["Identity", "Contract", "CNAS", "Leave", "Salary", "Other"] },
+            { name: "title", label: "Title", required: true },
+            { name: "reference", label: "Reference" },
+            { name: "note", label: "Note", type: "textarea", full: true },
+          ],
+          "Save document"
+        )}
       </div>
       ${renderSection(
         "Employees",
@@ -132,6 +144,21 @@
           ],
           state.leaves,
           { collection: "leaves" }
+        )
+      )}
+      ${renderSection(
+        "Documents",
+        renderTable(
+          [
+            { label: "Employee", value: (row) => employeeName(row.employeeId) },
+            { label: "Type", key: "documentType" },
+            { label: "Title", key: "title" },
+            { label: "Reference", key: "reference" },
+            { label: "Note", key: "note" },
+            { label: "Created At", value: (row) => (row.createdAt ? new Date(row.createdAt).toLocaleString() : "") },
+          ],
+          state.attachments,
+          { collection: "attachments" }
         )
       )}
     `;

@@ -26,6 +26,9 @@
     employeeName,
     paymentTargetLabel,
     employeeFunction,
+    closingChecklist,
+    documentationCoverage,
+    openQuestions,
     daysInMonth,
     pad,
     optionList,
@@ -67,7 +70,55 @@
           { collection: "users" }
         )
       )}
+      ${renderSection(
+        "Accounting Periods",
+        renderTable(
+          [
+            { label: "Month", value: (row) => monthNames[row.month - 1] },
+            { label: "Year", key: "year" },
+            { label: "Status", value: (row) => statusPill(row.status), html: true },
+            { label: "Opened At", value: (row) => (row.openedAt ? new Date(row.openedAt).toLocaleString() : "") },
+            { label: "Opened By", key: "openedBy" },
+            { label: "Closed At", value: (row) => (row.closedAt ? new Date(row.closedAt).toLocaleString() : "") },
+            { label: "Closed By", key: "closedBy" },
+            { label: "Close Note", key: "closeNote" },
+          ],
+          state.periods
+        )
+      )}
+      ${renderSection(
+        "Monthly Closing Checklist",
+        renderTable(
+          [
+            { label: "Condition", key: "item" },
+            { label: "Status", value: (row) => statusPill(row.ok ? "Validated" : "Draft"), html: true },
+            { label: "Detail", key: "detail" },
+          ],
+          closingChecklist()
+        )
+      )}
       ${renderSection("Permissions Matrix", renderPermissionsMatrix())}
+      ${renderSection(
+        "Documentation Coverage",
+        renderTable(
+          [
+            { label: "Documentation Area", key: "area" },
+            { label: "Prototype Coverage", key: "prototypeCoverage" },
+            { label: "Status", value: (row) => statusPill(row.status), html: true },
+          ],
+          documentationCoverage()
+        )
+      )}
+      ${renderSection(
+        "Open Decisions",
+        renderTable(
+          [
+            { label: "Category", key: "category" },
+            { label: "Decision to Validate", key: "question" },
+          ],
+          openQuestions()
+        )
+      )}
       ${renderSection(
         "Audit Log",
         renderTable(

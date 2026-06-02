@@ -101,7 +101,13 @@ function renderHeader(title, description, actions = "") {
 }
 
 function renderMetrics(items) {
-  return `<div class="grid four">${items.map((item) => `<div class="metric"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}</div>`;
+  return `<div class="grid four">${items
+    .map((item) => {
+      const inner = `<span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong>`;
+      if (item.view) return `<button class="metric metric-button" type="button" data-view="${escapeHtml(item.view)}" title="${escapeHtml(item.label)}">${inner}</button>`;
+      return `<div class="metric">${inner}</div>`;
+    })
+    .join("")}</div>`;
 }
 
 function registerView(name, renderer) {

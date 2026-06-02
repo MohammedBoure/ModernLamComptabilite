@@ -2,6 +2,7 @@
 
 Object.assign(window.ModernLamPrototype, {
   state,
+  labInfo,
   monthNames,
   supplierCategories,
   paymentModes,
@@ -43,6 +44,11 @@ Object.assign(window.ModernLamPrototype, {
   renderHeader,
   closedNotice,
   totals,
+  latestUpdate,
+  closingChecklist,
+  cashMovementStats,
+  documentationCoverage,
+  openQuestions,
   renderMetrics,
   registerView,
   setReportDatasetProvider,

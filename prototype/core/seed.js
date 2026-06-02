@@ -364,6 +364,7 @@ function seedState() {
         lastLoginAt: now.toISOString(),
       },
     ],
+    attachments: [],
     auditLogs: [
       {
         id: id(),

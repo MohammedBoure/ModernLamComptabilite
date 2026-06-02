@@ -36,6 +36,10 @@
   } = M;
   function renderBalance() {
     const t = totals();
+    const withdrawCv = t.safeExitsTotal;
+    const withdrawC = t.cashExpenseTotal;
+    const withdrawSubcontracting = t.supplierExpenseTotal;
+    const totalWithdraw = withdrawCv + withdrawC + withdrawSubcontracting;
     const rows = [
       ["Cash CV", t.cashCv],
       ["Cash C", t.cashC],
@@ -60,6 +64,15 @@
           { label: "Investments", value: money(t.investments) },
           { label: "Net Profitability", value: money(t.netProfitability) },
           { label: "Real Safe Net", value: money(t.realSafeNet) },
+        ])
+      )}
+      ${renderSection(
+        "Withdrawals",
+        renderMetrics([
+          { label: "Total Withdraw CV", value: money(withdrawCv) },
+          { label: "Total Withdraw C", value: money(withdrawC) },
+          { label: "Total Withdraw S/T", value: money(withdrawSubcontracting) },
+          { label: "Total Withdraw", value: money(totalWithdraw) },
         ])
       )}
       ${renderSection(

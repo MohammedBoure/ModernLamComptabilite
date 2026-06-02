@@ -4,6 +4,12 @@ const STORE_KEY = "modernlam.prototype.v1";
 const VIEW_KEY = "modernlam.prototype.activeView";
 const REPORT_KEY = "modernlam.prototype.reportType";
 
+const labInfo = {
+  name: "ModernLam - Laboratoire d'Analyses Medicales",
+  nif: "NIF prototype",
+  rip: "RIP prototype",
+};
+
 const monthNames = [
   "January",
   "February",

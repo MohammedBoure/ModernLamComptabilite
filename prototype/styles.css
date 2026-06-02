@@ -344,6 +344,16 @@ textarea:disabled {
   border-top: 4px solid var(--accent);
 }
 
+.metric-button {
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+}
+
+.metric-button:hover {
+  border-color: var(--accent);
+}
+
 .metric:nth-child(2n) {
   border-top-color: var(--accent-2);
 }

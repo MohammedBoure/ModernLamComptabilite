@@ -26,6 +26,7 @@
     employeeName,
     paymentTargetLabel,
     employeeFunction,
+    cashMovementStats,
     daysInMonth,
     pad,
     optionList,
@@ -111,6 +112,20 @@
         ])
       )}
       ${renderSection(
+        "Cash Movement Calculations",
+        renderTable(
+          [
+            { label: "Column", key: "label" },
+            { label: "Total", key: "total", amount: true, format: money },
+            { label: "Min (-Fri)", key: "min", amount: true, format: money },
+            { label: "Max (-Fri)", key: "max", amount: true, format: money },
+            { label: "Average (-Fri)", key: "average", amount: true, format: money },
+          ],
+          cashMovementStats(),
+          { empty: "No cash movement calculations yet." }
+        )
+      )}
+      ${renderSection(
         "Cash Movements",
         renderTable(
           [
@@ -140,6 +155,21 @@
           ],
           scopedRows("additionalEntries"),
           { collection: "additionalEntries" }
+        )
+      )}
+      ${renderSection(
+        "Profitability Movements",
+        renderTable(
+          [
+            { label: "Date", key: "date" },
+            { label: "Amount", key: "amount", amount: true, format: money },
+            { label: "Detail", key: "detail" },
+            { label: "Type", key: "movementType" },
+            { label: "Source", key: "sourcePeriod" },
+            { label: "Destination", key: "destinationPeriod" },
+          ],
+          scopedRows("profitabilityMovements"),
+          { collection: "profitabilityMovements" }
         )
       )}
       ${renderSection(

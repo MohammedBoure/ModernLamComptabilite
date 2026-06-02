@@ -3,6 +3,7 @@
   const M = window.ModernLamPrototype;
   const {
     state,
+    labInfo,
     monthNames,
     supplierCategories,
     paymentModes,
@@ -26,6 +27,7 @@
     employeeName,
     paymentTargetLabel,
     employeeFunction,
+    cashMovementStats,
     daysInMonth,
     pad,
     optionList,
@@ -38,14 +40,20 @@
     const reportOptions = [
       ["encashment", "Encashment Statement"],
       ["supplier", "Supplier Statement"],
+      ["supplierJournal", "Supplier Journal"],
       ["partner", "Subcontractor Statement"],
       ["cashExpenses", "Cash Expenses"],
+      ["differences", "Differences"],
       ["cashMovement", "Cash Movement"],
+      ["safeMovement", "Safe Movement"],
       ["balance", "Monthly Balance"],
       ["attendance", "Attendance"],
       ["salary", "Salary Report"],
       ["vehicle", "Service Vehicle"],
       ["cheque", "Cheque Statement"],
+      ["employees", "Employees"],
+      ["contracts", "Contracts"],
+      ["leave", "Leave"],
     ];
     return `
       ${renderHeader(
@@ -142,6 +150,23 @@
         total: `Total remaining: ${money(t.supplierRemaining)}`,
       };
     }
+    if (M.getActiveReport() === "supplierJournal") {
+      return {
+        title: "Supplier Journal",
+        columns: [
+          { label: "Date", key: "date" },
+          { label: "Supplier", value: (row) => supplierName(row.supplierId) },
+          { label: "Category", key: "category" },
+          { label: "Order Total", key: "orderTotal", amount: true, format: money },
+          { label: "Paid", key: "paidAmount", amount: true, format: money },
+          { label: "Remaining", key: "remainingAmount", amount: true, format: money },
+          { label: "Status", key: "status" },
+          { label: "Observation", key: "observation" },
+        ],
+        rows: scopedRows("supplierTransactions"),
+        total: `Journal total: ${money(sum(scopedRows("supplierTransactions"), "orderTotal"))}`,
+      };
+    }
     if (M.getActiveReport() === "partner") {
       return {
         title: "Subcontractor and Convention Statement",
@@ -171,6 +196,21 @@
         total: `Total: ${money(sum(scopedRows("cashExpenses"), "amount"))}`,
       };
     }
+    if (M.getActiveReport() === "differences") {
+      return {
+        title: "Differences",
+        columns: [
+          { label: "Date", key: "date" },
+          { label: "User", key: "user" },
+          { label: "Real Amount", key: "realAmount", amount: true, format: money },
+          { label: "Virtual Amount", key: "virtualAmount", amount: true, format: money },
+          { label: "Difference", key: "difference", amount: true, format: money },
+          { label: "Remark", key: "remark" },
+        ],
+        rows: scopedRows("cashClosures"),
+        total: `Net difference: ${money(sum(scopedRows("cashClosures"), "difference"))}`,
+      };
+    }
     if (M.getActiveReport() === "cashMovement") {
       return {
         title: "Cash Movement",
@@ -183,6 +223,25 @@
         ],
         rows: scopedRows("cashMovements"),
         total: `Total: ${money(sum(scopedRows("cashMovements"), "total"))}`,
+        meta: cashMovementStats().map((row) => `${row.label}: avg ${money(row.average)} / min ${money(row.min)} / max ${money(row.max)}`),
+      };
+    }
+    if (M.getActiveReport() === "safeMovement") {
+      return {
+        title: "Safe Movement",
+        columns: [
+          { label: "Date", key: "date" },
+          { label: "Type", key: "type" },
+          { label: "Designation", key: "designation" },
+          { label: "Amount", key: "amount", amount: true, format: money },
+          { label: "Category", key: "category" },
+          { label: "Remark", key: "remark" },
+        ],
+        rows: [
+          ...scopedRows("safeExits").map((row) => ({ ...row, type: "Safe Exit" })),
+          ...scopedRows("profitabilityMovements").map((row) => ({ ...row, type: row.movementType, designation: row.detail, category: "Profitability", remark: row.destinationPeriod })),
+        ],
+        total: `Safe exits: ${money(sum(scopedRows("safeExits"), "amount"))}; profitability movement: ${money(sum(scopedRows("profitabilityMovements"), "amount"))}`,
       };
     }
     if (M.getActiveReport() === "balance") {
@@ -231,6 +290,8 @@
       };
     }
     if (M.getActiveReport() === "vehicle") {
+      const vehicleRows = scopedRows("vehicleExpenses");
+      const averageKm = vehicleRows.length ? sum(vehicleRows, "mileage") / vehicleRows.length : 0;
       return {
         title: "Service Vehicle Tracking",
         columns: [
@@ -241,11 +302,18 @@
           { label: "GPL / Extra KM", key: "gplExtraKm" },
           { label: "Essence / Extra KM", key: "essenceExtraKm" },
         ],
-        rows: scopedRows("vehicleExpenses"),
-        total: `Total amount: ${money(sum(scopedRows("vehicleExpenses"), "amount"))}`,
+        rows: vehicleRows,
+        total: `Total amount: ${money(sum(vehicleRows, "amount"))}`,
+        meta: [
+          `Total GPL: ${sum(vehicleRows, "gplExtraKm")}`,
+          `Total Essence: ${sum(vehicleRows, "essenceExtraKm")}`,
+          `Average KM/Fill: ${number(averageKm).toLocaleString("fr-DZ", { maximumFractionDigits: 2 })}`,
+        ],
       };
     }
     if (M.getActiveReport() === "cheque") {
+      const cheques = scopedRows("cheques");
+      const currentAccount = sum(cheques, "entries") - sum(cheques, "exits");
       return {
         title: "Cheque Statement",
         columns: [
@@ -257,8 +325,60 @@
           { label: "Exits", key: "exits", amount: true, format: money },
           { label: "Designation", key: "designation" },
         ],
-        rows: scopedRows("cheques"),
-        total: `Total exits: ${money(sum(scopedRows("cheques"), "exits"))}`,
+        rows: cheques,
+        total: `Total exits: ${money(sum(cheques, "exits"))}`,
+        meta: [
+          "Account amount on 31/12/previous year: prototype opening balance",
+          `Account amount on current date: ${money(currentAccount)}`,
+          `Year: ${state.selected.year}`,
+        ],
+      };
+    }
+    if (M.getActiveReport() === "employees") {
+      return {
+        title: "Employees",
+        columns: [
+          { label: "Full Name", key: "fullName" },
+          { label: "Function", key: "function" },
+          { label: "Birth Date", key: "birthDate" },
+          { label: "Phone 01", key: "phone01" },
+          { label: "Phone 02", key: "phone02" },
+          { label: "Status", key: "status" },
+        ],
+        rows: state.employees,
+        total: `${state.employees.length} employees`,
+      };
+    }
+    if (M.getActiveReport() === "contracts") {
+      return {
+        title: "Contracts",
+        columns: [
+          { label: "Employee", value: (row) => employeeName(row.employeeId) },
+          { label: "Hire Date", key: "hireDate" },
+          { label: "CNAS", key: "cnasRegistrationDate" },
+          { label: "Contract", key: "contractType" },
+          { label: "From", key: "startsAt" },
+          { label: "To", key: "endsAt" },
+          { label: "Resignation", key: "resignationDate" },
+          { label: "Status", key: "status" },
+        ],
+        rows: state.contracts,
+        total: `${state.contracts.length} contracts`,
+      };
+    }
+    if (M.getActiveReport() === "leave") {
+      return {
+        title: "Leave",
+        columns: [
+          { label: "Employee", value: (row) => employeeName(row.employeeId) },
+          { label: "Year", key: "year" },
+          { label: "Acquired", key: "acquiredDays" },
+          { label: "Used", key: "usedDays" },
+          { label: "Remaining", key: "remainingDays" },
+          { label: "Remark", key: "remark" },
+        ],
+        rows: state.leaves.filter((row) => number(row.year) === state.selected.year),
+        total: `Remaining leave: ${sum(state.leaves.filter((row) => number(row.year) === state.selected.year), "remainingDays")} days`,
       };
     }
     return {
@@ -291,13 +411,16 @@
         <div class="report-title">
           <div>
             <h2>${escapeHtml(dataset.title)}</h2>
-            <span>ModernLam - Laboratoire d'Analyses Medicales</span>
+            <span>${escapeHtml(labInfo.name)}</span><br>
+            <span>NIF: ${escapeHtml(labInfo.nif)} · RIP: ${escapeHtml(labInfo.rip)}</span>
           </div>
           <div>
             <strong>${escapeHtml(monthNames[state.selected.month - 1])} ${state.selected.year}</strong><br>
-            <span>Generated by Admin - ${escapeHtml(new Date().toLocaleDateString())}</span>
+            <span>Generated by Admin - ${escapeHtml(new Date().toLocaleDateString())}</span><br>
+            <span>Draft / Official prototype preview</span>
           </div>
         </div>
+        ${dataset.meta ? `<div class="alert-list">${dataset.meta.map((item) => `<div class="alert-item ok"><span>${escapeHtml(item)}</span></div>`).join("")}</div>` : ""}
         ${renderTable(columns, dataset.rows, { empty: "No source data for this report." })}
         <div class="signature-row">
           <strong>${escapeHtml(dataset.total)}</strong>

@@ -26,6 +26,7 @@
     employeeName,
     paymentTargetLabel,
     employeeFunction,
+    latestUpdate,
     daysInMonth,
     pad,
     optionList,
@@ -39,25 +40,32 @@
     const unjustified = scopedRows("cashClosures").filter((row) => number(row.difference) !== 0 && !row.remark.trim()).length;
     const draftSalaries = scopedRows("salaryReports").filter((row) => row.status === "Draft").length;
     const partialSuppliers = scopedRows("supplierTransactions").filter((row) => row.status !== "Paid").length;
+    const openPartners = scopedRows("partners").filter((row) => number(row.remainingBalance) > 0).length;
+    const employeesWithoutContracts = state.employees.filter((employee) => employee.status !== "Inactive" && !state.contracts.some((contract) => contract.employeeId === employee.id && contract.status === "Active")).length;
+    const incompleteCheques = scopedRows("cheques").filter((row) => !row.beneficiary || !row.chequeNumber || number(row.amount) <= 0).length;
     const balanceReady = t.globalRevenue !== 0 || t.expensesTotal !== 0;
     const alerts = [
       [unjustified === 0, "Cash differences", unjustified === 0 ? "No unjustified differences" : `${unjustified} need remarks`],
       [partialSuppliers === 0, "Supplier balances", partialSuppliers === 0 ? "No open supplier balance" : `${partialSuppliers} open balances`],
+      [openPartners === 0, "Partner balances", openPartners === 0 ? "No open partner balance" : `${openPartners} partner or convention balances`],
       [draftSalaries === 0, "Salary report", draftSalaries === 0 ? "No draft salaries" : `${draftSalaries} draft rows`],
+      [employeesWithoutContracts === 0, "Active contracts", employeesWithoutContracts === 0 ? "All active employees have contracts" : `${employeesWithoutContracts} employees without active contracts`],
+      [incompleteCheques === 0, "Cheques", incompleteCheques === 0 ? "No incomplete cheque rows" : `${incompleteCheques} incomplete cheque rows`],
       [balanceReady, "Monthly balance", balanceReady ? "Calculated from current data" : "No financial data yet"],
     ];
     return `
       ${renderHeader("Dashboard", "Monthly financial summary, alerts, and closing readiness.")}
       ${closedNotice()}
       ${renderMetrics([
-        { label: "Cash CV", value: money(t.cashCv) },
-        { label: "Cash C", value: money(t.cashC) },
-        { label: "TPE", value: money(t.tpe) },
-        { label: "Real Safe Net", value: money(t.realSafeNet) },
-        { label: "Global Revenue", value: money(t.globalRevenue) },
-        { label: "Profitability", value: money(t.profitability) },
-        { label: "Net Profitability", value: money(t.netProfitability) },
-        { label: "Supplier Remaining", value: money(t.supplierRemaining) },
+        { label: "Cash CV", value: money(t.cashCv), view: "cashSafe" },
+        { label: "Cash C", value: money(t.cashC), view: "cashSafe" },
+        { label: "TPE", value: money(t.tpe), view: "cashSafe" },
+        { label: "Expenses", value: money(t.expensesTotal), view: "balance" },
+        { label: "Real Safe Net", value: money(t.realSafeNet), view: "cashSafe" },
+        { label: "Global Revenue", value: money(t.globalRevenue), view: "balance" },
+        { label: "Profitability", value: money(t.profitability), view: "balance" },
+        { label: "Net Profitability", value: money(t.netProfitability), view: "balance" },
+        { label: "Last Update", value: latestUpdate() || "Unavailable" },
       ])}
       ${renderSection(
         "Monthly Alerts",

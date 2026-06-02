@@ -10,10 +10,22 @@ function setPeriod(month, year) {
 function setPeriodStatus(status) {
   const period = getPeriod();
   const before = { ...period };
+  if (status === "Closed") {
+    const blockers = closingChecklist().filter((item) => !item.ok);
+    if (blockers.length) {
+      period.status = "Under review";
+      audit("Closing blocked", "accounting_periods", period.id, blockers, before, "Automatic closing checklist failed");
+      saveState();
+      showToast(`Closing blocked: ${blockers.map((item) => item.item).join(", ")}.`);
+      render();
+      return;
+    }
+  }
   period.status = status;
   if (status === "Closed") {
     period.closedAt = new Date().toISOString();
     period.closedBy = "Admin";
+    period.closeNote = "Closed from prototype checklist.";
   }
   audit("Set period status", "accounting_periods", period.id, period, before);
   saveState();
@@ -428,6 +440,17 @@ function handleSubmit(event) {
       usedDays,
       remainingDays: acquiredDays - usedDays,
       remark: data.remark,
+    });
+  }
+
+  if (formId === "document") {
+    addRecord("attachments", {
+      employeeId: data.employeeId,
+      documentType: data.documentType,
+      title: data.title,
+      reference: data.reference,
+      note: data.note,
+      createdAt: new Date().toISOString(),
     });
   }
 
