@@ -9,6 +9,12 @@ const SUPPLIER_FILTER_KEY = "modernlam.prototype.suppliers.search";
 const SUPPLIER_CATEGORY_FILTER_KEY = "modernlam.prototype.suppliers.category";
 const SUPPLIER_STATUS_FILTER_KEY = "modernlam.prototype.suppliers.status";
 const PARTNER_TYPE_FILTER_KEY = "modernlam.prototype.partners.type";
+const HR_TAB_KEY = "modernlam.prototype.hr.tab";
+const HR_EMPLOYEE_KEY = "modernlam.prototype.hr.employee";
+const HR_SEARCH_FILTER_KEY = "modernlam.prototype.hr.search";
+const HR_FUNCTION_FILTER_KEY = "modernlam.prototype.hr.function";
+const HR_STATUS_FILTER_KEY = "modernlam.prototype.hr.status";
+const HR_CONTRACT_FILTER_KEY = "modernlam.prototype.hr.contract";
 
 const labInfo = {
   name: "ModernLam - Laboratoire d'Analyses Medicales",

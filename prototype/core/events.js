@@ -32,6 +32,12 @@ function handleClick(event) {
     updateSalaryStatus(salaryStatusButton.dataset.id, salaryStatusButton.dataset.salaryStatus);
     return;
   }
+  const hrTabButton = event.target.closest("[data-hr-tab]");
+  if (hrTabButton) {
+    localStorage.setItem(HR_TAB_KEY, hrTabButton.dataset.hrTab);
+    render();
+    return;
+  }
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
   if (action === "generate-salaries") generateSalaryDrafts();
@@ -58,6 +64,13 @@ function handleClick(event) {
     localStorage.removeItem(PARTNER_TYPE_FILTER_KEY);
     render();
   }
+  if (action === "reset-hr-filters") {
+    localStorage.removeItem(HR_SEARCH_FILTER_KEY);
+    localStorage.removeItem(HR_FUNCTION_FILTER_KEY);
+    localStorage.removeItem(HR_STATUS_FILTER_KEY);
+    localStorage.removeItem(HR_CONTRACT_FILTER_KEY);
+    render();
+  }
 }
 
 function handleChange(event) {
@@ -78,6 +91,27 @@ function handleChange(event) {
   if (partnerFilter) {
     if (partnerFilter.value) localStorage.setItem(PARTNER_TYPE_FILTER_KEY, partnerFilter.value);
     else localStorage.removeItem(PARTNER_TYPE_FILTER_KEY);
+    render();
+    return;
+  }
+  const hrEmployee = event.target.closest("[data-hr-employee]");
+  if (hrEmployee) {
+    if (hrEmployee.value) localStorage.setItem(HR_EMPLOYEE_KEY, hrEmployee.value);
+    else localStorage.removeItem(HR_EMPLOYEE_KEY);
+    render();
+    return;
+  }
+  const hrListFilter = event.target.closest("[data-hr-list-filter]");
+  if (hrListFilter) {
+    const keys = {
+      search: HR_SEARCH_FILTER_KEY,
+      function: HR_FUNCTION_FILTER_KEY,
+      status: HR_STATUS_FILTER_KEY,
+      contract: HR_CONTRACT_FILTER_KEY,
+    };
+    const key = keys[hrListFilter.dataset.hrListFilter];
+    if (hrListFilter.value) localStorage.setItem(key, hrListFilter.value);
+    else localStorage.removeItem(key);
     render();
     return;
   }

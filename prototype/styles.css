@@ -630,6 +630,42 @@ tr:last-child td {
   background: #edf8f7;
 }
 
+.hr-alerts {
+  margin-bottom: 16px;
+}
+
+.hr-filter-bar {
+  margin-bottom: 12px;
+}
+
+.employee-file-selector {
+  margin-bottom: 12px;
+}
+
+.employee-file-selector .grid {
+  flex: 1 1 520px;
+}
+
+.employee-tabs {
+  margin: 0 0 14px;
+}
+
+.employee-file-body {
+  display: grid;
+  gap: 14px;
+}
+
+.panel-block {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.panel-block h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
 .attendance-grid table {
   min-width: 1320px;
 }
