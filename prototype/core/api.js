@@ -47,6 +47,7 @@ Object.assign(window.ModernLamPrototype, {
   latestUpdate,
   closingChecklist,
   cashMovementStats,
+  safeSummaryTrace,
   unjustifiedCashDifferences,
   cashDifferenceStatement,
   documentationCoverage,

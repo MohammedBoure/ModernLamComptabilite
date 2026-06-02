@@ -27,6 +27,7 @@
     paymentTargetLabel,
     employeeFunction,
     cashMovementStats,
+    safeSummaryTrace,
     daysInMonth,
     pad,
     optionList,
@@ -35,8 +36,25 @@
     statusPill,
     escapeHtml
   } = M;
+
+  function renderSafeSourceTrace(rows) {
+    return renderTable(
+      [
+        { label: "Metric", key: "metric" },
+        { label: "Value", key: "value", amount: true, format: money },
+        { label: "Source Tables", key: "sourceTables" },
+        { label: "Values In", key: "incoming" },
+        { label: "Values Out", key: "outgoing" },
+        { label: "Formula", key: "formula" },
+      ],
+      rows,
+      { empty: "No source trace yet." }
+    );
+  }
+
   function renderCashSafe() {
     const t = totals();
+    const traceRows = safeSummaryTrace();
     return `
       ${renderHeader("Cash & Safe", "Daily cash movement, additional entries, safe exits, profitability movements, and safe summary.")}
       ${closedNotice()}
@@ -103,23 +121,26 @@
       ${renderSection(
         "Safe Summary",
         renderMetrics([
-          { label: "Real Safe Net", value: money(t.realSafeNet) },
-          { label: "LAM Revenue", value: money(t.lamRevenue) },
-          { label: "Convention Revenue", value: money(t.conventionRevenue) },
-          { label: "Subcontractor Revenue", value: money(t.subcontractorRevenue) },
-          { label: "Additional Entry Revenue", value: money(t.paidAdditional) },
-          { label: "Global Revenue", value: money(t.globalRevenue) },
+          { label: "Real Safe Net", value: money(t.realSafeNet), detail: "Formula trace below" },
+          { label: "LAM Revenue", value: money(t.lamRevenue), detail: "Prototype formula only" },
+          { label: "Convention Revenue", value: money(t.conventionRevenue), detail: "Cash movement + paid convention" },
+          { label: "Subcontractor Revenue", value: money(t.subcontractorRevenue), detail: "Cash movement + paid subcontractors" },
+          { label: "Additional Entry Revenue", value: money(t.paidAdditional), detail: "Paid entries only" },
+          { label: "Global Revenue", value: money(t.globalRevenue), detail: "Summary total" },
         ])
       )}
+      ${renderSection("Safe Summary Source Trace", renderSafeSourceTrace(traceRows))}
       ${renderSection(
-        "Cash Movement Calculations",
+        "Cash Movement Calculations (-Friday)",
         renderTable(
           [
             { label: "Column", key: "label" },
-            { label: "Total", key: "total", amount: true, format: money },
+            { label: "Total (-Fri)", key: "total", amount: true, format: money },
             { label: "Min (-Fri)", key: "min", amount: true, format: money },
             { label: "Max (-Fri)", key: "max", amount: true, format: money },
             { label: "Average (-Fri)", key: "average", amount: true, format: money },
+            { label: "Rows Used", key: "rowsUsed" },
+            { label: "Fridays Excluded", key: "fridayRows" },
           ],
           cashMovementStats(),
           { empty: "No cash movement calculations yet." }
@@ -157,36 +178,38 @@
           { collection: "additionalEntries" }
         )
       )}
-      ${renderSection(
-        "Profitability Movements",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Amount", key: "amount", amount: true, format: money },
-            { label: "Detail", key: "detail" },
-            { label: "Type", key: "movementType" },
-            { label: "Source", key: "sourcePeriod" },
-            { label: "Destination", key: "destinationPeriod" },
-          ],
-          scopedRows("profitabilityMovements"),
-          { collection: "profitabilityMovements" }
-        )
-      )}
-      ${renderSection(
-        "Safe Exits",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Designation", key: "designation" },
-            { label: "Amount", key: "amount", amount: true, format: money },
-            { label: "Category", key: "category" },
-            { label: "Attachment", key: "attachmentRef" },
-            { label: "Remark", key: "remark" },
-          ],
-          scopedRows("safeExits"),
-          { collection: "safeExits" }
-        )
-      )}
+      <div class="safe-ledger-grid">
+        ${renderSection(
+          "Safe Exits",
+          renderTable(
+            [
+              { label: "Date", key: "date" },
+              { label: "Designation", key: "designation" },
+              { label: "Amount", key: "amount", amount: true, format: money },
+              { label: "Category", key: "category" },
+              { label: "Attachment", key: "attachmentRef" },
+              { label: "Remark", key: "remark" },
+            ],
+            scopedRows("safeExits"),
+            { collection: "safeExits" }
+          )
+        )}
+        ${renderSection(
+          "Profitability Movements",
+          renderTable(
+            [
+              { label: "Date", key: "date" },
+              { label: "Amount", key: "amount", amount: true, format: money },
+              { label: "Detail", key: "detail" },
+              { label: "Type", key: "movementType" },
+              { label: "Source", key: "sourcePeriod" },
+              { label: "Destination", key: "destinationPeriod" },
+            ],
+            scopedRows("profitabilityMovements"),
+            { collection: "profitabilityMovements" }
+          )
+        )}
+      </div>
     `;
   }
 

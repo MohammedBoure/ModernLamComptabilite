@@ -477,6 +477,20 @@ textarea:disabled {
   padding: 7px 9px;
 }
 
+.safe-ledger-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.safe-ledger-grid .section:first-child {
+  border-top: 4px solid var(--danger);
+}
+
+.safe-ledger-grid .section:last-child {
+  border-top: 4px solid var(--accent-2);
+}
+
 .table-wrap {
   width: 100%;
   overflow: auto;
@@ -785,6 +799,7 @@ tr:last-child td {
   .grid.two,
   .grid.three,
   .grid.four,
+  .safe-ledger-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }

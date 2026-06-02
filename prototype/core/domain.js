@@ -110,14 +110,17 @@ function totals() {
   const cashC = sum(movements, "cashC");
   const tpe = sum(movements, "tpe");
   const movementExpenses = sum(movements, "expenses");
+  const movementConvention = sum(movements, "convention");
+  const movementSubcontractors = sum(movements, "subcontractors");
   const cashExpenseTotal = sum(expenses, "amount");
   const safeExitsTotal = sum(exits, "amount");
   const paidAdditional = sum(additional.filter((row) => row.paymentStatus === "Paid"), "amount");
+  const excludedAdditional = sum(additional.filter((row) => row.paymentStatus !== "Paid"), "amount");
   const profitMovementTotal = sum(profitMovements, "amount");
   const paidSubcontractors = sum(partners.filter((row) => row.type === "Subcontractor"), "payment");
   const paidConvention = sum(partners.filter((row) => row.type === "Convention"), "payment");
-  const conventionRevenue = sum(movements, "convention") + paidConvention;
-  const subcontractorRevenue = sum(movements, "subcontractors") + paidSubcontractors;
+  const conventionRevenue = movementConvention + paidConvention;
+  const subcontractorRevenue = movementSubcontractors + paidSubcontractors;
   const realSafeNet = cashCv + cashC + paidAdditional + profitMovementTotal + paidSubcontractors + paidConvention - safeExitsTotal;
   const lamRevenue = cashC + cashC + movementExpenses;
   const globalRevenue = realSafeNet + lamRevenue + conventionRevenue + subcontractorRevenue + paidAdditional;
@@ -131,9 +134,12 @@ function totals() {
     cashC,
     tpe,
     movementExpenses,
+    movementConvention,
+    movementSubcontractors,
     cashExpenseTotal,
     safeExitsTotal,
     paidAdditional,
+    excludedAdditional,
     profitMovementTotal,
     paidSubcontractors,
     paidConvention,
@@ -257,6 +263,7 @@ function cashMovementStats() {
     if (!row.date) return true;
     return new Date(row.date).getDay() !== 5;
   });
+  const fridayRows = rows.length - nonFriday.length;
   const metrics = [
     ["cashCv", "Cash CV"],
     ["cashC", "Cash C"],
@@ -269,12 +276,66 @@ function cashMovementStats() {
   ];
   return metrics.map(([key, label]) => {
     const values = nonFriday.map((row) => number(row[key]));
-    const total = sum(rows, key);
+    const total = sum(nonFriday, key);
     const min = values.length ? Math.min(...values) : 0;
     const max = values.length ? Math.max(...values) : 0;
     const average = values.length ? values.reduce((acc, value) => acc + value, 0) / values.length : 0;
-    return { label, total, min, max, average };
+    return { label, total, min, max, average, rowsUsed: nonFriday.length, fridayRows };
   });
+}
+
+function safeSummaryTrace() {
+  const t = totals();
+  return [
+    {
+      metric: "Real Safe Net",
+      value: t.realSafeNet,
+      sourceTables: "cash_movements, additional_entries, profitability_movements, partners, safe_exits",
+      incoming: `Cash CV ${money(t.cashCv)} + Cash C ${money(t.cashC)} + Paid Additional Entries ${money(t.paidAdditional)} + Profitability Movement ${money(t.profitMovementTotal)} + Paid Subcontractors ${money(t.paidSubcontractors)} + Paid Convention ${money(t.paidConvention)}`,
+      outgoing: `Safe Exits ${money(t.safeExitsTotal)}`,
+      formula: "Cash CV + Cash C + Paid Additional Entries + Profitability Movement + Paid Subcontractors + Paid Convention - Safe Exits",
+    },
+    {
+      metric: "LAM Revenue",
+      value: t.lamRevenue,
+      sourceTables: "cash_movements",
+      incoming: `Cash C ${money(t.cashC)} + Cash C ${money(t.cashC)} + Cash Movement Expenses ${money(t.movementExpenses)}`,
+      outgoing: "No outgoing value in the prototype formula.",
+      formula: "Prototype only: Cash C + Cash C + Expenses. Final rule is still tracked as an open question.",
+    },
+    {
+      metric: "Convention Revenue",
+      value: t.conventionRevenue,
+      sourceTables: "cash_movements, partners",
+      incoming: `Cash Movement Convention ${money(t.movementConvention)} + Paid Convention ${money(t.paidConvention)}`,
+      outgoing: "No outgoing value.",
+      formula: "Convention + Paid Convention",
+    },
+    {
+      metric: "Subcontractor Revenue",
+      value: t.subcontractorRevenue,
+      sourceTables: "cash_movements, partners",
+      incoming: `Cash Movement Subcontractors ${money(t.movementSubcontractors)} + Paid Subcontractors ${money(t.paidSubcontractors)}`,
+      outgoing: "No outgoing value.",
+      formula: "Subcontractors + Paid Subcontractors",
+    },
+    {
+      metric: "Additional Entry Revenue",
+      value: t.paidAdditional,
+      sourceTables: "additional_entries",
+      incoming: `Paid Additional Entries ${money(t.paidAdditional)}`,
+      outgoing: `Unpaid or partial additional entries excluded ${money(t.excludedAdditional)}`,
+      formula: "Only Paid additional entries are counted.",
+    },
+    {
+      metric: "Global Revenue",
+      value: t.globalRevenue,
+      sourceTables: "safe_summary",
+      incoming: `Real Safe Net ${money(t.realSafeNet)} + LAM Revenue ${money(t.lamRevenue)} + Convention Revenue ${money(t.conventionRevenue)} + Subcontractor Revenue ${money(t.subcontractorRevenue)} + Additional Entry Revenue ${money(t.paidAdditional)}`,
+      outgoing: "No outgoing value.",
+      formula: "Real Safe Net + LAM Revenue + Convention Revenue + Subcontractor Revenue + Additional Entry Revenue",
+    },
+  ];
 }
 
 function documentationCoverage() {
