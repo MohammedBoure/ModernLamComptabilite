@@ -11,6 +11,7 @@
     salaryStatuses,
     dayCodes,
     roles,
+    getPeriod,
     renderHeader,
     closedNotice,
     renderMetrics,
@@ -35,28 +36,92 @@
     statusPill,
     escapeHtml
   } = M;
+
+  function severityFor(count, activeSeverity = "warning") {
+    return count > 0 ? activeSeverity : "info";
+  }
+
+  function renderAlert(alert) {
+    const report = alert.report ? ` data-report="${escapeHtml(alert.report)}"` : "";
+    return `
+      <button class="alert-item ${escapeHtml(alert.severity)}" type="button" data-view="${escapeHtml(alert.view)}"${report} title="${escapeHtml(alert.title)}">
+        <span class="alert-copy">
+          <strong>${escapeHtml(alert.title)}</strong>
+          <span>${escapeHtml(alert.text)}</span>
+        </span>
+        <span class="alert-severity">${escapeHtml(alert.severity)}</span>
+      </button>
+    `;
+  }
+
   function renderDashboard() {
     const t = totals();
+    const period = getPeriod();
+    const lastUpdate = latestUpdate() || "No activity yet";
     const unjustified = scopedRows("cashClosures").filter((row) => number(row.difference) !== 0 && !row.remark.trim()).length;
     const draftSalaries = scopedRows("salaryReports").filter((row) => row.status === "Draft").length;
-    const partialSuppliers = scopedRows("supplierTransactions").filter((row) => row.status !== "Paid").length;
+    const openSupplierRows = scopedRows("supplierTransactions").filter((row) => number(row.remainingAmount) > 0);
+    const partialSuppliers = openSupplierRows.length;
+    const supplierRemaining = sum(openSupplierRows, "remainingAmount");
     const openPartners = scopedRows("partners").filter((row) => number(row.remainingBalance) > 0).length;
+    const partnerRemaining = sum(scopedRows("partners"), "remainingBalance");
     const employeesWithoutContracts = state.employees.filter((employee) => employee.status !== "Inactive" && !state.contracts.some((contract) => contract.employeeId === employee.id && contract.status === "Active")).length;
     const incompleteCheques = scopedRows("cheques").filter((row) => !row.beneficiary || !row.chequeNumber || number(row.amount) <= 0).length;
-    const balanceReady = t.globalRevenue !== 0 || t.expensesTotal !== 0;
+    const hasPeriodExport = state.reportExports.some((row) => row.period === currentPeriodKey());
     const alerts = [
-      [unjustified === 0, "Cash differences", unjustified === 0 ? "No unjustified differences" : `${unjustified} need remarks`],
-      [partialSuppliers === 0, "Supplier balances", partialSuppliers === 0 ? "No open supplier balance" : `${partialSuppliers} open balances`],
-      [openPartners === 0, "Partner balances", openPartners === 0 ? "No open partner balance" : `${openPartners} partner or convention balances`],
-      [draftSalaries === 0, "Salary report", draftSalaries === 0 ? "No draft salaries" : `${draftSalaries} draft rows`],
-      [employeesWithoutContracts === 0, "Active contracts", employeesWithoutContracts === 0 ? "All active employees have contracts" : `${employeesWithoutContracts} employees without active contracts`],
-      [incompleteCheques === 0, "Cheques", incompleteCheques === 0 ? "No incomplete cheque rows" : `${incompleteCheques} incomplete cheque rows`],
-      [balanceReady, "Monthly balance", balanceReady ? "Calculated from current data" : "No financial data yet"],
+      {
+        title: "Cash differences",
+        text: unjustified ? `${unjustified} need remarks` : "No unjustified differences",
+        severity: severityFor(unjustified, "blocking"),
+        view: "cashClosing",
+      },
+      {
+        title: "Supplier balances",
+        text: partialSuppliers ? `${partialSuppliers} open balances` : "No open supplier balance",
+        severity: severityFor(partialSuppliers),
+        view: "suppliers",
+      },
+      {
+        title: "Partner balances",
+        text: openPartners ? `${openPartners} not settled` : "All settled",
+        severity: severityFor(openPartners),
+        view: "partners",
+      },
+      {
+        title: "Draft salaries",
+        text: draftSalaries ? `${draftSalaries} draft rows` : "No draft salaries",
+        severity: severityFor(draftSalaries, "blocking"),
+        view: "salaries",
+      },
+      {
+        title: "Active contracts",
+        text: employeesWithoutContracts ? `${employeesWithoutContracts} missing contracts` : "All active employees covered",
+        severity: severityFor(employeesWithoutContracts),
+        view: "hr",
+      },
+      {
+        title: "Cheques",
+        text: incompleteCheques ? `${incompleteCheques} incomplete rows` : "No incomplete cheque rows",
+        severity: severityFor(incompleteCheques),
+        view: "reports",
+        report: "cheque",
+      },
+      {
+        title: "Closing export",
+        text: hasPeriodExport ? "Export trace exists" : "No report/export trace",
+        severity: hasPeriodExport ? "info" : "blocking",
+        view: "reports",
+      },
     ];
     return `
-      ${renderHeader("Dashboard", "Monthly financial summary, alerts, and closing readiness.")}
+      ${renderHeader(
+        "Dashboard",
+        "Monthly financial summary, alerts, and closing readiness.",
+        `<div class="dashboard-stamp"><strong>${escapeHtml(period.status)}</strong><span>Last update: ${escapeHtml(lastUpdate)}</span></div>`
+      )}
       ${closedNotice()}
       ${renderMetrics([
+        { label: "Period Status", value: period.status, detail: `${monthNames[state.selected.month - 1]} ${state.selected.year}`, view: "admin" },
         { label: "Cash CV", value: money(t.cashCv), view: "cashSafe" },
         { label: "Cash C", value: money(t.cashC), view: "cashSafe" },
         { label: "TPE", value: money(t.tpe), view: "cashSafe" },
@@ -65,12 +130,16 @@
         { label: "Global Revenue", value: money(t.globalRevenue), view: "balance" },
         { label: "Profitability", value: money(t.profitability), view: "balance" },
         { label: "Net Profitability", value: money(t.netProfitability), view: "balance" },
-        { label: "Last Update", value: latestUpdate() || "Unavailable" },
+        { label: "Supplier Remaining", value: money(supplierRemaining), view: "suppliers", severity: partialSuppliers ? "warning" : "info" },
+        { label: "Partner Remaining", value: money(partnerRemaining), view: "partners", severity: openPartners ? "warning" : "info" },
+        { label: "Draft Salaries", value: draftSalaries, view: "salaries", severity: draftSalaries ? "blocking" : "info" },
+        { label: "Incomplete Cheques", value: incompleteCheques, view: "reports", report: "cheque", severity: incompleteCheques ? "warning" : "info" },
+        { label: "Last Update", value: lastUpdate, view: "admin" },
       ])}
       ${renderSection(
         "Monthly Alerts",
         `<div class="alert-list">${alerts
-          .map(([ok, title, text]) => `<div class="alert-item ${ok ? "ok" : ""}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></div>`)
+          .map(renderAlert)
           .join("")}</div>`
       )}
       ${renderSection(

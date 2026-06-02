@@ -3,6 +3,10 @@
 function handleClick(event) {
   const viewButton = event.target.closest("[data-view]");
   if (viewButton) {
+    if (viewButton.dataset.report) {
+      activeReport = viewButton.dataset.report;
+      localStorage.setItem(REPORT_KEY, activeReport);
+    }
     activeView = viewButton.dataset.view;
     localStorage.setItem(VIEW_KEY, activeView);
     render();

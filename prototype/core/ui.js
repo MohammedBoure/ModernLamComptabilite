@@ -103,8 +103,10 @@ function renderHeader(title, description, actions = "") {
 function renderMetrics(items) {
   return `<div class="grid four">${items
     .map((item) => {
-      const inner = `<span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong>`;
-      if (item.view) return `<button class="metric metric-button" type="button" data-view="${escapeHtml(item.view)}" title="${escapeHtml(item.label)}">${inner}</button>`;
+      const inner = `<span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong>${item.detail ? `<small>${escapeHtml(item.detail)}</small>` : ""}`;
+      const report = item.report ? ` data-report="${escapeHtml(item.report)}"` : "";
+      const severity = item.severity ? ` metric-${escapeHtml(item.severity)}` : "";
+      if (item.view) return `<button class="metric metric-button${severity}" type="button" data-view="${escapeHtml(item.view)}"${report} title="${escapeHtml(item.label)}">${inner}</button>`;
       return `<div class="metric">${inner}</div>`;
     })
     .join("")}</div>`;
