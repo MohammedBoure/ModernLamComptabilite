@@ -48,6 +48,7 @@ Object.assign(window.ModernLamPrototype, {
   closingChecklist,
   cashMovementStats,
   documentationCoverage,
+  coverageFollowUpTasks,
   openQuestions,
   renderMetrics,
   registerView,

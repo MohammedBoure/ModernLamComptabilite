@@ -175,6 +175,27 @@ textarea:disabled {
   background: #fff0ed;
 }
 
+.status-covered {
+  color: var(--ok);
+  background: #eaf7ef;
+}
+
+.status-partially-covered,
+.status-planned {
+  color: var(--warn);
+  background: #fff5de;
+}
+
+.status-tracked {
+  color: var(--violet);
+  background: #f4efff;
+}
+
+.status-missing {
+  color: var(--danger);
+  background: #fff0ed;
+}
+
 .top-actions,
 .action-row,
 .section-actions {

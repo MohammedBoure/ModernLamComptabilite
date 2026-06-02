@@ -28,6 +28,7 @@
     employeeFunction,
     closingChecklist,
     documentationCoverage,
+    coverageFollowUpTasks,
     openQuestions,
     daysInMonth,
     pad,
@@ -102,11 +103,26 @@
         "Documentation Coverage",
         renderTable(
           [
-            { label: "Documentation Area", key: "area" },
-            { label: "Prototype Coverage", key: "prototypeCoverage" },
+            { label: "Source", key: "source" },
+            { label: "Area", key: "area" },
+            { label: "Requirement", key: "requirement" },
             { label: "Status", value: (row) => statusPill(row.status), html: true },
+            { label: "Prototype Coverage", key: "prototypeCoverage" },
+            { label: "Follow-up", key: "followUp" },
           ],
           documentationCoverage()
+        )
+      )}
+      ${renderSection(
+        "Coverage Follow-up Tasks",
+        renderTable(
+          [
+            { label: "Priority", key: "priority" },
+            { label: "Area", key: "area" },
+            { label: "Task", key: "task" },
+            { label: "Status", value: (row) => statusPill(row.status), html: true },
+          ],
+          coverageFollowUpTasks()
         )
       )}
       ${renderSection(
