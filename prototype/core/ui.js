@@ -100,6 +100,15 @@ function renderHeader(title, description, actions = "") {
   `;
 }
 
+function renderAssumptionNotice(title, items = []) {
+  return `
+    <div class="read-only-note assumption-note">
+      <strong>${escapeHtml(title)}</strong>
+      ${items.length ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+    </div>
+  `;
+}
+
 function renderMetrics(items) {
   return `<div class="grid four">${items
     .map((item) => {

@@ -18,6 +18,7 @@
     totals,
     money,
     renderSection,
+    renderAssumptionNotice,
     renderTable,
     scopedRows,
     renderForm,
@@ -43,6 +44,11 @@
     return `
       ${renderHeader("Salaries", "Monthly salary report with additions, deductions, validation, and payment status.", actions)}
       ${closedNotice()}
+      ${renderAssumptionNotice("Prototype assumptions - payroll decisions still tracked", [
+        "Official salary formula is not final.",
+        "Guard prices and absence unit are manual prototype inputs.",
+        "Leave treatment, day 15 rule, and carry-over remain open decisions.",
+      ])}
       ${renderMetrics([
         { label: "Draft Salaries", value: draftRows, detail: "Blocks monthly closing" },
         { label: "Validated", value: salaryRows.filter((row) => row.status === "Validated").length, detail: "Ready to pay" },
@@ -116,9 +122,9 @@
   function renderFormulaNote() {
     return `
       <div class="formula-note">
-        <strong>Prototype formula</strong>
+        <strong>Prototype formula assumption</strong>
         <span>Net Salary + Extra Attendance + LAM Travel + Guards + Bonus - Absence - Penalties - Advances.</span>
-        <span>Guard prices, leave treatment, and the official payroll rule remain tracked decisions.</span>
+        <span>Guard prices, absence unit, leave treatment, and the official payroll rule remain tracked decisions.</span>
       </div>
     `;
   }

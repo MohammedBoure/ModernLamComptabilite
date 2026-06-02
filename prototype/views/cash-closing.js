@@ -17,6 +17,7 @@
     totals,
     money,
     renderSection,
+    renderAssumptionNotice,
     renderTable,
     scopedRows,
     renderForm,
@@ -82,6 +83,10 @@
     return `
       ${renderHeader("Cash Closing", "Cash expenses, real amount control, SOFTLAM comparison, and difference statement.")}
       ${closedNotice()}
+      ${renderAssumptionNotice("Prototype assumption - SOFTLAM source", [
+        "Virtual Amount is manually entered in this prototype.",
+        "SOFTLAM import/manual source and export format remain tracked decisions.",
+      ])}
       ${renderBlockingDifferenceAlert(blockingRows)}
       ${renderCashClosingFilters(dateFilter, userFilter, closures)}
       <div class="grid two">

@@ -330,14 +330,14 @@
           { label: "Amount", key: "amount", amount: true, format: money },
           { label: "Entries", key: "entries", amount: true, format: money },
           { label: "Exits", key: "exits", amount: true, format: money },
-          { label: "Running Balance", value: () => "Tracked" },
+          { label: "Running Balance", value: () => "Prototype placeholder" },
           { label: "Designation", key: "designation" },
         ],
         rows: cheques,
         total: `Total entries: ${money(sum(cheques, "entries"))}; total exits: ${money(sum(cheques, "exits"))}`,
         meta: [
           "Account amount on 31/12/previous year: prototype opening balance",
-          "Running balance placeholder: final rule is still tracked and not fixed in this prototype.",
+          "Prototype assumption only: cheque running balance is a placeholder; final rule is still tracked.",
           `Year: ${state.selected.year}`,
         ],
       };

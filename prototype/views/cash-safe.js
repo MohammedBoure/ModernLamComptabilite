@@ -17,6 +17,7 @@
     totals,
     money,
     renderSection,
+    renderAssumptionNotice,
     renderTable,
     scopedRows,
     renderForm,
@@ -58,6 +59,12 @@
     return `
       ${renderHeader("Cash & Safe", "Daily cash movement, additional entries, safe exits, profitability movements, and safe summary.")}
       ${closedNotice()}
+      ${renderAssumptionNotice("Prototype assumptions - accounting decisions still tracked", [
+        "LAM Revenue formula is not final.",
+        "Cash CV/Cash C roles are shown as source columns only.",
+        "TPE treatment remains an open decision.",
+        "Additional Entries are counted as paid-only prototype revenue until confirmed.",
+      ])}
       <div class="grid two">
         ${renderForm(
           "Cash Movement",
@@ -122,10 +129,10 @@
         "Safe Summary",
         renderMetrics([
           { label: "Real Safe Net", value: money(t.realSafeNet), detail: "Formula trace below" },
-          { label: "LAM Revenue", value: money(t.lamRevenue), detail: "Prototype formula only" },
+          { label: "LAM Revenue", value: money(t.lamRevenue), detail: "Prototype assumption only" },
           { label: "Convention Revenue", value: money(t.conventionRevenue), detail: "Cash movement + paid convention" },
           { label: "Subcontractor Revenue", value: money(t.subcontractorRevenue), detail: "Cash movement + paid subcontractors" },
-          { label: "Additional Entry Revenue", value: money(t.paidAdditional), detail: "Paid entries only" },
+          { label: "Additional Entry Revenue", value: money(t.paidAdditional), detail: "Prototype paid-only assumption" },
           { label: "Global Revenue", value: money(t.globalRevenue), detail: "Summary total" },
         ])
       )}

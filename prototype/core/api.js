@@ -45,6 +45,7 @@ Object.assign(window.ModernLamPrototype, {
   renderTable,
   renderSection,
   renderHeader,
+  renderAssumptionNotice,
   closedNotice,
   totals,
   latestUpdate,

@@ -319,7 +319,7 @@ function safeSummaryTrace() {
       sourceTables: "cash_movements, additional_entries, profitability_movements, partners, safe_exits",
       incoming: `Cash CV ${money(t.cashCv)} + Cash C ${money(t.cashC)} + Paid Additional Entries ${money(t.paidAdditional)} + Profitability Movement ${money(t.profitMovementTotal)} + Paid Subcontractors ${money(t.paidSubcontractors)} + Paid Convention ${money(t.paidConvention)}`,
       outgoing: `Safe Exits ${money(t.safeExitsTotal)}`,
-      formula: "Cash CV + Cash C + Paid Additional Entries + Profitability Movement + Paid Subcontractors + Paid Convention - Safe Exits",
+      formula: "Prototype assumption: Cash CV + Cash C + Paid Additional Entries + Profitability Movement + Paid Subcontractors + Paid Convention - Safe Exits",
     },
     {
       metric: "LAM Revenue",
@@ -351,7 +351,7 @@ function safeSummaryTrace() {
       sourceTables: "additional_entries",
       incoming: `Paid Additional Entries ${money(t.paidAdditional)}`,
       outgoing: `Unpaid or partial additional entries excluded ${money(t.excludedAdditional)}`,
-      formula: "Only Paid additional entries are counted.",
+      formula: "Prototype assumption: only Paid additional entries are counted until Additional Entries treatment is confirmed.",
     },
     {
       metric: "Global Revenue",
@@ -359,7 +359,7 @@ function safeSummaryTrace() {
       sourceTables: "safe_summary",
       incoming: `Real Safe Net ${money(t.realSafeNet)} + LAM Revenue ${money(t.lamRevenue)} + Convention Revenue ${money(t.conventionRevenue)} + Subcontractor Revenue ${money(t.subcontractorRevenue)} + Additional Entry Revenue ${money(t.paidAdditional)}`,
       outgoing: "No outgoing value.",
-      formula: "Real Safe Net + LAM Revenue + Convention Revenue + Subcontractor Revenue + Additional Entry Revenue",
+      formula: "Prototype assumption: Real Safe Net + LAM Revenue + Convention Revenue + Subcontractor Revenue + Additional Entry Revenue",
     },
   ];
 }
@@ -514,7 +514,7 @@ function documentationCoverage() {
       source: "spec/09, accounting-technical/02",
       area: "Business rules",
       requirement: "Cash, supplier, partner, safe net, revenue, profitability, salary, leave, and closing calculations.",
-      prototypeCoverage: "Stable calculations are represented; LAM Revenue, final salary formula, leave rules, and related open items remain unresolved.",
+      prototypeCoverage: "Stable calculations are represented; LAM Revenue, Cash CV/Cash C role, TPE treatment, Additional Entries treatment, salary formula, guard prices, absence unit, leave rules, cheque running balance, SOFTLAM source, and close/reopen role remain explicit tracked decisions.",
       status: "Tracked",
       followUp: "Do not finalize unresolved formulas until the open questions are answered.",
     },
@@ -546,7 +546,7 @@ function documentationCoverage() {
       source: "spec/13, docs/ar/spec/13",
       area: "Open questions",
       requirement: "Unresolved accounting, SOFTLAM, supplier, salary, leave, report, permission, and technical decisions.",
-      prototypeCoverage: "Open decisions are listed in Administration and are not treated as final business rules.",
+      prototypeCoverage: "Open decisions are listed one-by-one in Administration with Tracked status and prototype treatment, and assumption notices appear where unresolved rules are represented.",
       status: "Tracked",
       followUp: "Resolve with the user before changing LAM Revenue, salaries, leave, or permission rules.",
     },
@@ -564,18 +564,25 @@ function coverageFollowUpTasks() {
     ["Medium", "Reports and statements", "Add report-level filters/search and decide between generated PDF files or documented print-to-PDF behavior.", "Planned"],
     ["Medium", "Permissions and audit", "Enforce the permission matrix in the UI and require reasons for sensitive actions.", "Planned"],
     ["Low", "Data model", "Add dedicated local collections for attachments, vehicle expenses, cheques, and encashments or document their mapping.", "Planned"],
-    ["Decision", "Business rules", "Keep LAM Revenue, official salary formula, leave rules, cheque running balance, and supplier attachment/invoice behavior tracked until confirmed.", "Tracked"],
+    ["Decision", "Business rules", "Keep LAM Revenue, Cash CV/Cash C role, TPE treatment, Additional Entries treatment, SOFTLAM source, official salary formula, guard prices, absence unit, leave rules, cheque running balance, and close/reopen roles tracked until confirmed.", "Tracked"],
   ].map((row) => ({ priority: row[0], area: row[1], task: row[2], status: row[3] }));
 }
 
 function openQuestions() {
   return [
-    ["Accounting", "Exact LAM Revenue formula; Cash CV/Cash C roles; TPE treatment; Additional Entries treatment; partner recognition timing."],
-    ["SOFTLAM", "Virtual Amount source; manual entry or import; export format; difference by user or cash desk."],
-    ["Suppliers", "Multi-category supplier; partial payment per invoice; invoice/purchase slip need; attachment requirement."],
-    ["Salaries", "Official final salary formula; absence unit; guard prices; leave/sick leave treatment; advance carry-over."],
-    ["Leave", "Day 15 rule; yearly carry-over; sick leave treatment; leave validation authorization."],
-    ["Reports", "PDF identical to Excel or adapted; stamp/signature scope; encashment amount source; cheque running balance."],
-    ["Permissions", "Roles allowed to close/reopen; Direction modification rights; HR financial visibility; Accountant employee visibility."],
-  ].map((row) => ({ category: row[0], question: row[1] }));
+    ["Accounting", "LAM Revenue formula", "Displayed only as a prototype formula in Cash & Safe and Monthly Balance."],
+    ["Accounting", "Cash CV/Cash C role", "Values are shown as separate source columns; their final accounting meaning is not fixed."],
+    ["Accounting", "TPE treatment", "TPE is reported as a source value; final revenue/cash treatment remains tracked."],
+    ["Accounting", "Additional Entries treatment", "Paid entries are included as a prototype assumption only."],
+    ["SOFTLAM", "SOFTLAM import/manual source", "Virtual Amount is manually entered in prototype; import/source rule is not final."],
+    ["Salaries", "Official salary formula", "Salary screen labels the calculation as a prototype formula."],
+    ["Salaries", "Guard prices", "Guard amounts are manual inputs; official prices are not fixed."],
+    ["Salaries", "Absence unit", "Absence is a manual deduction amount; official unit is not fixed."],
+    ["Leave", "Leave day 15 rule", "Not automated; leave balances are manual prototype rows."],
+    ["Leave", "Leave carry-over", "Not automated; yearly balance behavior remains tracked."],
+    ["Reports", "Cheque running balance", "Cheque report shows a tracked placeholder, not a final balance rule."],
+    ["Permissions", "Role authorized to close/reopen", "Prototype shows controls but does not finalize the authorized role."],
+    ["Accounting", "Partner recognition timing", "Partner payments and balances are shown; final recognition timing remains tracked."],
+    ["Suppliers", "Supplier invoices and attachments", "Supplier rows accept references/observations; final attachment requirement remains tracked."],
+  ].map((row) => ({ category: row[0], question: row[1], prototypeTreatment: row[2], status: "Tracked" }));
 }

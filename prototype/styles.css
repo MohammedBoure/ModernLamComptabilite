@@ -789,6 +789,20 @@ tr:last-child td {
   margin-bottom: 14px;
 }
 
+.assumption-note {
+  display: grid;
+  gap: 6px;
+}
+
+.assumption-note ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.assumption-note li {
+  margin: 2px 0;
+}
+
 .salary-form-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -10,6 +10,7 @@
     renderSection,
     renderTable,
     renderForm,
+    renderAssumptionNotice,
     closingChecklist,
     documentationCoverage,
     coverageFollowUpTasks,
@@ -44,6 +45,10 @@
       ${renderPrototypeSettingsForm(settings)}
       ${renderUserForm()}
       ${renderSection("Users", renderUsersTable())}
+      ${renderAssumptionNotice("Prototype assumption - closing authorization", [
+        "Close/Reopen controls are visible in the prototype for testing.",
+        "The role authorized to close or reopen a month remains a tracked open decision.",
+      ])}
       ${renderSection("Accounting Periods", renderPeriodsTable(), renderPeriodActions())}
       ${renderSection("Monthly Closing Checklist", renderClosingChecklist(checklistRows), renderPeriodActions())}
       ${renderSection("Audit Log", renderAuditLog())}
@@ -80,6 +85,8 @@
           [
             { label: "Category", key: "category" },
             { label: "Decision to Validate", key: "question" },
+            { label: "Status", value: (row) => statusPill(row.status), html: true },
+            { label: "Prototype Treatment", key: "prototypeTreatment" },
           ],
           openQuestions()
         )

@@ -17,6 +17,7 @@
     totals,
     money,
     renderSection,
+    renderAssumptionNotice,
     renderTable,
     scopedRows,
     renderForm,
@@ -55,6 +56,10 @@
     ].map(([indicator, value]) => ({ indicator, value }));
     return `
       ${renderHeader("Monthly Balance", "Calculated financial balance for the selected month.")}
+      ${renderAssumptionNotice("Prototype assumptions - monthly balance", [
+        "LAM Revenue, Cash CV/Cash C roles, TPE treatment, and Additional Entries treatment remain tracked decisions.",
+        "Displayed totals are prototype calculations and must not be treated as final accounting rules.",
+      ])}
       ${renderSection(
         "Monthly Result",
         renderMetrics([
