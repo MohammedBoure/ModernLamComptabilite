@@ -4,6 +4,10 @@ This repository is the official entry point for documenting and building the int
 
 The documentation is organized by language. Arabic, French, and English versions are available.
 
+## Web Prototype
+
+A browser-only functional prototype is available at [index.html](./index.html). It stores demo data in the browser through `localStorage`; no backend, database, or installation is required.
+
 ## Documentation
 
 | Language | Directory | Status |
