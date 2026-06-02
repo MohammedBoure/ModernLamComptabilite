@@ -78,6 +78,8 @@
   let activeView = localStorage.getItem(VIEW_KEY) || "dashboard";
   let activeReport = localStorage.getItem(REPORT_KEY) || "encashment";
   let toast = "";
+  const viewRenderers = {};
+  let reportDatasetProvider = null;
 
   function loadState() {
     try {
@@ -588,6 +590,20 @@
     return supplier ? supplier.name : "Unknown supplier";
   }
 
+  function paymentTargetLabel(row) {
+    if (row.targetType === "supplier") {
+      const tx = state.supplierTransactions.find((item) => item.id === row.targetId);
+      return tx ? supplierName(tx.supplierId) : "Supplier transaction";
+    }
+    const partner = state.partners.find((item) => item.id === row.targetId);
+    return partner ? partner.name : "Partner";
+  }
+
+  function employeeFunction(employeeId) {
+    const employee = state.employees.find((row) => row.id === employeeId);
+    return employee ? employee.function : "";
+  }
+
   function audit(action, entityType, entityId, newValues = "", oldValues = "", reason = "") {
     state.auditLogs.unshift({
       id: id(),
@@ -830,1107 +846,21 @@
     return `<div class="grid four">${items.map((item) => `<div class="metric"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}</div>`;
   }
 
-  function renderDashboard() {
-    const t = totals();
-    const unjustified = scopedRows("cashClosures").filter((row) => number(row.difference) !== 0 && !row.remark.trim()).length;
-    const draftSalaries = scopedRows("salaryReports").filter((row) => row.status === "Draft").length;
-    const partialSuppliers = scopedRows("supplierTransactions").filter((row) => row.status !== "Paid").length;
-    const balanceReady = t.globalRevenue !== 0 || t.expensesTotal !== 0;
-    const alerts = [
-      [unjustified === 0, "Cash differences", unjustified === 0 ? "No unjustified differences" : `${unjustified} need remarks`],
-      [partialSuppliers === 0, "Supplier balances", partialSuppliers === 0 ? "No open supplier balance" : `${partialSuppliers} open balances`],
-      [draftSalaries === 0, "Salary report", draftSalaries === 0 ? "No draft salaries" : `${draftSalaries} draft rows`],
-      [balanceReady, "Monthly balance", balanceReady ? "Calculated from current data" : "No financial data yet"],
-    ];
-    return `
-      ${renderHeader("Dashboard", "Monthly financial summary, alerts, and closing readiness.")}
-      ${closedNotice()}
-      ${renderMetrics([
-        { label: "Cash CV", value: money(t.cashCv) },
-        { label: "Cash C", value: money(t.cashC) },
-        { label: "TPE", value: money(t.tpe) },
-        { label: "Real Safe Net", value: money(t.realSafeNet) },
-        { label: "Global Revenue", value: money(t.globalRevenue) },
-        { label: "Profitability", value: money(t.profitability) },
-        { label: "Net Profitability", value: money(t.netProfitability) },
-        { label: "Supplier Remaining", value: money(t.supplierRemaining) },
-      ])}
-      ${renderSection(
-        "Monthly Alerts",
-        `<div class="alert-list">${alerts
-          .map(([ok, title, text]) => `<div class="alert-item ${ok ? "ok" : ""}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></div>`)
-          .join("")}</div>`
-      )}
-      ${renderSection(
-        "Recent Audit",
-        renderTable(
-          [
-            { label: "Date", value: (row) => new Date(row.createdAt).toLocaleString() },
-            { label: "Action", key: "action" },
-            { label: "Entity", key: "entityType" },
-            { label: "User", key: "user" },
-          ],
-          state.auditLogs.slice(0, 8),
-          { empty: "No audit entries." }
-        )
-      )}
-    `;
+  function registerView(name, renderer) {
+    viewRenderers[name] = renderer;
   }
 
-  function renderCashClosing() {
-    const expenses = scopedRows("cashExpenses");
-    const closures = scopedRows("cashClosures");
-    const summary = Object.values(
-      closures.reduce((acc, row) => {
-        acc[row.user] ||= { user: row.user, net: 0, count: 0 };
-        acc[row.user].net += number(row.difference);
-        acc[row.user].count += 1;
-        return acc;
-      }, {})
-    );
-    return `
-      ${renderHeader("Cash Closing", "Cash expenses, real amount control, SOFTLAM comparison, and difference statement.")}
-      ${closedNotice()}
-      <div class="grid two">
-        ${renderForm(
-          "Cash Expense",
-          "cashExpense",
-          [
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "designation", label: "Designation", required: true, span: 2 },
-            { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-            { name: "attachmentRef", label: "Document" },
-            { name: "remark", label: "Remark", type: "textarea", full: true },
-          ],
-          "Save expense",
-          { periodScoped: true }
-        )}
-        ${renderForm(
-          "Daily Difference",
-          "cashClosure",
-          [
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "user", label: "User", required: true },
-            { name: "realAmount", label: "Real Amount", type: "number", min: 0, step: "0.01", required: true },
-            { name: "virtualAmount", label: "Virtual Amount", type: "number", min: 0, step: "0.01", required: true },
-            { name: "remark", label: "Remark", type: "textarea", full: true },
-          ],
-          "Save difference",
-          { periodScoped: true }
-        )}
-      </div>
-      ${renderSection(
-        "Cash Expenses",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Designation", key: "designation" },
-            { label: "Amount", key: "amount", amount: true, format: money },
-            { label: "Document", key: "attachmentRef" },
-            { label: "Remark", key: "remark" },
-            { label: "Status", value: (row) => statusPill(row.status), html: true },
-          ],
-          expenses,
-          { collection: "cashExpenses" }
-        )
-      )}
-      ${renderSection(
-        "Differences",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "User", key: "user" },
-            { label: "Real", key: "realAmount", amount: true, format: money },
-            { label: "Virtual", key: "virtualAmount", amount: true, format: money },
-            { label: "Difference", key: "difference", amount: true, format: money },
-            { label: "Remark", key: "remark" },
-            { label: "Status", value: (row) => statusPill(row.status), html: true },
-          ],
-          closures,
-          { collection: "cashClosures" }
-        )
-      )}
-      ${renderSection(
-        "Difference Statement",
-        renderTable(
-          [
-            { label: "User", key: "user" },
-            { label: "Entries", key: "count" },
-            { label: "Net", key: "net", amount: true, format: money },
-          ],
-          summary,
-          { empty: "No differences recorded." }
-        )
-      )}
-    `;
+  function setReportDatasetProvider(provider) {
+    reportDatasetProvider = provider;
   }
 
-  function renderCashSafe() {
-    const t = totals();
-    return `
-      ${renderHeader("Cash & Safe", "Daily cash movement, additional entries, safe exits, profitability movements, and safe summary.")}
-      ${closedNotice()}
-      <div class="grid two">
-        ${renderForm(
-          "Cash Movement",
-          "cashMovement",
-          [
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "cashCv", label: "Cash CV", type: "number", min: 0, step: "0.01" },
-            { name: "cashC", label: "Cash C", type: "number", min: 0, step: "0.01" },
-            { name: "tpe", label: "TPE", type: "number", min: 0, step: "0.01" },
-            { name: "expenses", label: "Expenses", type: "number", min: 0, step: "0.01" },
-            { name: "reimbursement", label: "Reimbursement", type: "number", min: 0, step: "0.01" },
-            { name: "convention", label: "Convention", type: "number", min: 0, step: "0.01" },
-            { name: "subcontractors", label: "Subcontractors", type: "number", min: 0, step: "0.01" },
-            { name: "remark", label: "Remark", type: "textarea", full: true },
-          ],
-          "Save movement",
-          { periodScoped: true }
-        )}
-        ${renderForm(
-          "Additional Entry",
-          "additionalEntry",
-          [
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-            { name: "detail", label: "Detail", required: true },
-            { name: "paymentStatus", label: "Payment Status", type: "select", options: paymentStatuses, value: "Paid" },
-            { name: "remark", label: "Remark", type: "textarea", full: true },
-          ],
-          "Save entry",
-          { periodScoped: true }
-        )}
-        ${renderForm(
-          "Safe Exit",
-          "safeExit",
-          [
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "designation", label: "Designation", required: true },
-            { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-            { name: "category", label: "Category", type: "select", options: supplierCategories, value: "Internal Expenses" },
-            { name: "attachmentRef", label: "Attachment" },
-            { name: "remark", label: "Remark", type: "textarea", full: true },
-          ],
-          "Save exit",
-          { periodScoped: true }
-        )}
-        ${renderForm(
-          "Profitability Movement",
-          "profitabilityMovement",
-          [
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "amount", label: "Amount", type: "number", step: "0.01", required: true },
-            { name: "detail", label: "Detail", required: true },
-            { name: "movementType", label: "Type", type: "select", options: ["Entry", "Exit", "Carry-over"], value: "Entry" },
-            { name: "sourcePeriod", label: "Source Period" },
-            { name: "destinationPeriod", label: "Destination Period", value: currentPeriodKey() },
-          ],
-          "Save movement",
-          { periodScoped: true }
-        )}
-      </div>
-      ${renderSection(
-        "Safe Summary",
-        renderMetrics([
-          { label: "Real Safe Net", value: money(t.realSafeNet) },
-          { label: "LAM Revenue", value: money(t.lamRevenue) },
-          { label: "Convention Revenue", value: money(t.conventionRevenue) },
-          { label: "Subcontractor Revenue", value: money(t.subcontractorRevenue) },
-          { label: "Additional Entry Revenue", value: money(t.paidAdditional) },
-          { label: "Global Revenue", value: money(t.globalRevenue) },
-        ])
-      )}
-      ${renderSection(
-        "Cash Movements",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Cash CV", key: "cashCv", amount: true, format: money },
-            { label: "Cash C", key: "cashC", amount: true, format: money },
-            { label: "TPE", key: "tpe", amount: true, format: money },
-            { label: "Expenses", key: "expenses", amount: true, format: money },
-            { label: "Reimbursement", key: "reimbursement", amount: true, format: money },
-            { label: "Convention", key: "convention", amount: true, format: money },
-            { label: "Subcontractors", key: "subcontractors", amount: true, format: money },
-            { label: "Total", key: "total", amount: true, format: money },
-          ],
-          scopedRows("cashMovements"),
-          { collection: "cashMovements" }
-        )
-      )}
-      ${renderSection(
-        "Additional Entries",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Amount", key: "amount", amount: true, format: money },
-            { label: "Detail", key: "detail" },
-            { label: "Payment", key: "paymentStatus" },
-            { label: "Remark", key: "remark" },
-          ],
-          scopedRows("additionalEntries"),
-          { collection: "additionalEntries" }
-        )
-      )}
-      ${renderSection(
-        "Safe Exits",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Designation", key: "designation" },
-            { label: "Amount", key: "amount", amount: true, format: money },
-            { label: "Category", key: "category" },
-            { label: "Attachment", key: "attachmentRef" },
-            { label: "Remark", key: "remark" },
-          ],
-          scopedRows("safeExits"),
-          { collection: "safeExits" }
-        )
-      )}
-    `;
+  function getActiveReport() {
+    return activeReport;
   }
 
-  function renderBalance() {
-    const t = totals();
-    const rows = [
-      ["Cash CV", t.cashCv],
-      ["Cash C", t.cashC],
-      ["Convention", t.conventionRevenue],
-      ["Subcontracting", t.subcontractorRevenue],
-      ["Additional Entries", t.paidAdditional],
-      ["Revenue", t.globalRevenue],
-      ["Expenses", t.expensesTotal],
-      ["Profitability", t.profitability],
-      ["Investments", t.investments],
-      ["Net Profitability", t.netProfitability],
-      ["Real Safe Net", t.realSafeNet],
-    ].map(([indicator, value]) => ({ indicator, value }));
-    return `
-      ${renderHeader("Monthly Balance", "Calculated financial balance for the selected month.")}
-      ${renderSection(
-        "Monthly Result",
-        renderMetrics([
-          { label: "Revenue", value: money(t.globalRevenue) },
-          { label: "Expenses", value: money(t.expensesTotal) },
-          { label: "Profitability", value: money(t.profitability) },
-          { label: "Investments", value: money(t.investments) },
-          { label: "Net Profitability", value: money(t.netProfitability) },
-          { label: "Real Safe Net", value: money(t.realSafeNet) },
-        ])
-      )}
-      ${renderSection(
-        "Balance Lines",
-        renderTable(
-          [
-            { label: "Indicator", key: "indicator" },
-            { label: "Value", key: "value", amount: true, format: money },
-          ],
-          rows
-        )
-      )}
-    `;
-  }
-
-  function renderSuppliers() {
-    const supplierOptions = state.suppliers.map((supplier) => [supplier.id, supplier.name]);
-    const transactionOptions = scopedRows("supplierTransactions").map((row) => [row.id, `${supplierName(row.supplierId)} - ${money(row.remainingAmount)} remaining`]);
-    return `
-      ${renderHeader("Suppliers", "Supplier register, invoices, payments, and remaining balances.")}
-      ${closedNotice()}
-      <div class="grid three">
-        ${renderForm(
-          "Supplier",
-          "supplier",
-          [
-            { name: "name", label: "Supplier LAM", required: true, span: 2 },
-            { name: "category", label: "Category", type: "select", options: supplierCategories },
-            { name: "phone", label: "Phone" },
-            { name: "address", label: "Address", span: 2 },
-            { name: "notes", label: "Notes", type: "textarea", full: true },
-          ],
-          "Save supplier"
-        )}
-        ${renderForm(
-          "Invoice or Order",
-          "supplierTransaction",
-          [
-            { name: "supplierId", label: "Supplier", type: "select", options: supplierOptions, required: true },
-            { name: "category", label: "Category", type: "select", options: supplierCategories },
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "orderTotal", label: "Order Total", type: "number", min: 0, step: "0.01", required: true },
-            { name: "paidAmount", label: "Paid", type: "number", min: 0, step: "0.01" },
-            { name: "paymentMode", label: "Payment Mode", type: "select", options: ["", ...paymentModes] },
-            { name: "reference", label: "Reference" },
-            { name: "observation", label: "Observation", type: "textarea", full: true },
-          ],
-          "Save invoice",
-          { periodScoped: true }
-        )}
-        ${renderForm(
-          "Payment",
-          "supplierPayment",
-          [
-            { name: "targetId", label: "Invoice", type: "select", options: transactionOptions, required: true },
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-            { name: "paymentMode", label: "Mode", type: "select", options: paymentModes, required: true },
-            { name: "reference", label: "Reference" },
-            { name: "note", label: "Note", type: "textarea", full: true },
-          ],
-          "Save payment",
-          { periodScoped: true }
-        )}
-      </div>
-      ${renderSection(
-        "Suppliers",
-        renderTable(
-          [
-            { label: "Supplier", key: "name" },
-            { label: "Category", key: "category" },
-            { label: "Phone", key: "phone" },
-            { label: "Address", key: "address" },
-            { label: "Active", value: (row) => (row.isActive ? "Yes" : "No") },
-          ],
-          state.suppliers,
-          { collection: "suppliers" }
-        )
-      )}
-      ${renderSection(
-        "Invoices and Orders",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Supplier", value: (row) => supplierName(row.supplierId) },
-            { label: "Category", key: "category" },
-            { label: "Order Total", key: "orderTotal", amount: true, format: money },
-            { label: "Paid", key: "paidAmount", amount: true, format: money },
-            { label: "Remaining", key: "remainingAmount", amount: true, format: money },
-            { label: "Status", value: (row) => statusPill(row.status), html: true },
-            { label: "Observation", key: "observation" },
-          ],
-          scopedRows("supplierTransactions"),
-          { collection: "supplierTransactions" }
-        )
-      )}
-      ${renderSection(
-        "Payments",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Target", value: (row) => paymentTargetLabel(row) },
-            { label: "Amount", key: "amount", amount: true, format: money },
-            { label: "Mode", key: "paymentMode" },
-            { label: "Reference", key: "reference" },
-            { label: "Note", key: "note" },
-          ],
-          scopedRows("payments").filter((row) => row.targetType === "supplier"),
-          { collection: "payments" }
-        )
-      )}
-    `;
-  }
-
-  function paymentTargetLabel(row) {
-    if (row.targetType === "supplier") {
-      const tx = state.supplierTransactions.find((item) => item.id === row.targetId);
-      return tx ? supplierName(tx.supplierId) : "Supplier transaction";
-    }
-    const partner = state.partners.find((item) => item.id === row.targetId);
-    return partner ? partner.name : "Partner";
-  }
-
-  function renderPartners() {
-    return `
-      ${renderHeader("Subcontractors & Conventions", "External partners, conventions, payments, and remaining balances.")}
-      ${closedNotice()}
-      <div class="grid two">
-        ${renderForm(
-          "Partner Operation",
-          "partner",
-          [
-            { name: "type", label: "Type", type: "select", options: partnerTypes },
-            { name: "name", label: "Name", required: true },
-            { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-            { name: "payment", label: "Payment", type: "number", min: 0, step: "0.01" },
-            { name: "receptionDate", label: "Reception Date", type: "date", value: defaultDate(), required: true },
-            { name: "paymentMode", label: "Payment Mode", type: "select", options: ["", ...paymentModes] },
-            { name: "remarks", label: "Remarks", type: "textarea", full: true },
-          ],
-          "Save partner",
-          { periodScoped: true }
-        )}
-        ${renderForm(
-          "Partner Payment",
-          "partnerPayment",
-          [
-            { name: "targetId", label: "Partner", type: "select", options: scopedRows("partners").map((row) => [row.id, `${row.name} - ${money(row.remainingBalance)} remaining`]), required: true },
-            { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-            { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-            { name: "paymentMode", label: "Mode", type: "select", options: paymentModes, required: true },
-            { name: "reference", label: "Reference" },
-            { name: "note", label: "Note", type: "textarea", full: true },
-          ],
-          "Save payment",
-          { periodScoped: true }
-        )}
-      </div>
-      ${renderSection(
-        "Partner Statement",
-        renderTable(
-          [
-            { label: "Type", key: "type" },
-            { label: "Name", key: "name" },
-            { label: "Amount", key: "amount", amount: true, format: money },
-            { label: "Payment", key: "payment", amount: true, format: money },
-            { label: "Reception Date", key: "receptionDate" },
-            { label: "Mode", key: "paymentMode" },
-            { label: "Remaining", key: "remainingBalance", amount: true, format: money },
-            { label: "Status", value: (row) => statusPill(row.status), html: true },
-            { label: "Remarks", key: "remarks" },
-          ],
-          scopedRows("partners"),
-          { collection: "partners" }
-        )
-      )}
-      ${renderSection(
-        "Partner Payments",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Target", value: (row) => paymentTargetLabel(row) },
-            { label: "Amount", key: "amount", amount: true, format: money },
-            { label: "Mode", key: "paymentMode" },
-            { label: "Reference", key: "reference" },
-            { label: "Note", key: "note" },
-          ],
-          scopedRows("payments").filter((row) => row.targetType === "partner"),
-          { collection: "payments" }
-        )
-      )}
-    `;
-  }
-
-  function renderAttendance() {
-    const employeeOptions = state.employees.filter((row) => row.status !== "Inactive").map((employee) => [employee.id, employee.fullName]);
-    const grid = renderAttendanceGrid();
-    return `
-      ${renderHeader("Attendance", "Monthly attendance grid using P, ABS, G, GV-J, GV-N, C, C.M, REC, and P+.")}
-      ${closedNotice()}
-      ${renderForm(
-        "Attendance Entry",
-        "attendance",
-        [
-          { name: "employeeId", label: "Employee", type: "select", options: employeeOptions, required: true },
-          { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-          { name: "dayCode", label: "Code", type: "select", options: dayCodes, required: true },
-          { name: "note", label: "Note", type: "textarea", full: true },
-        ],
-        "Save attendance",
-        { periodScoped: true }
-      )}
-      ${renderSection("Monthly Grid", grid)}
-      ${renderSection(
-        "Attendance Entries",
-        renderTable(
-          [
-            { label: "Date", key: "date" },
-            { label: "Employee", value: (row) => employeeName(row.employeeId) },
-            { label: "Code", key: "dayCode" },
-            { label: "Note", key: "note" },
-          ],
-          scopedRows("attendance"),
-          { collection: "attendance" }
-        )
-      )}
-    `;
-  }
-
-  function renderAttendanceGrid() {
-    const days = Array.from({ length: daysInMonth() }, (_, index) => index + 1);
-    const employees = state.employees.filter((row) => row.status !== "Inactive");
-    if (!employees.length) return `<div class="empty-state">No active employees.</div>`;
-    const rows = employees
-      .map((employee) => {
-        const cells = days
-          .map((day) => {
-            const date = `${state.selected.year}-${pad(state.selected.month)}-${pad(day)}`;
-            const entry = scopedRows("attendance").find((row) => row.employeeId === employee.id && row.date === date);
-            const code = entry ? entry.dayCode : "";
-            return `<td class="day-cell ${codeClass(code)}">${escapeHtml(code)}</td>`;
-          })
-          .join("");
-        const totals = countCodes(employee.id);
-        return `<tr><td>${escapeHtml(employee.fullName)}</td>${cells}<td>${totals.present}</td><td>${totals.absence}</td><td>${totals.guards}</td><td>${totals.leave}</td></tr>`;
-      })
-      .join("");
-    return `
-      <div class="table-wrap attendance-grid">
-        <table>
-          <thead>
-            <tr><th>Employee</th>${days.map((day) => `<th class="day-cell">${day}</th>`).join("")}<th>P</th><th>ABS</th><th>Guards</th><th>Leave</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    `;
-  }
-
-  function codeClass(code) {
-    if (code === "P" || code === "P+") return "code-p";
-    if (code === "ABS") return "code-abs";
-    if (["G", "GV-J", "GV-N"].includes(code)) return "code-guard";
-    return "";
-  }
-
-  function countCodes(employeeId) {
-    const rows = scopedRows("attendance").filter((row) => row.employeeId === employeeId);
-    return {
-      present: rows.filter((row) => ["P", "P+"].includes(row.dayCode)).length,
-      absence: rows.filter((row) => row.dayCode === "ABS").length,
-      guards: rows.filter((row) => ["G", "GV-J", "GV-N"].includes(row.dayCode)).length,
-      leave: rows.filter((row) => ["C", "C.M"].includes(row.dayCode)).length,
-    };
-  }
-
-  function renderSalaries() {
-    const employeeOptions = state.employees.filter((row) => row.status !== "Inactive").map((employee) => [employee.id, employee.fullName]);
-    const actions = `<button class="text-btn secondary" type="button" data-action="generate-salaries" title="Generate drafts">+ Generate Drafts</button>`;
-    return `
-      ${renderHeader("Salaries", "Monthly salary report with additions, deductions, validation, and payment status.", actions)}
-      ${closedNotice()}
-      ${renderForm(
-        "Salary Row",
-        "salary",
-        [
-          { name: "employeeId", label: "Employee", type: "select", options: employeeOptions, required: true },
-          { name: "baseNetSalary", label: "Net Salary", type: "number", min: 0, step: "0.01", required: true },
-          { name: "overtimePresence", label: "Extra Attendance", type: "number", min: 0, step: "0.01" },
-          { name: "lamTravel", label: "LAM Travel", type: "number", min: 0, step: "0.01" },
-          { name: "nightGuard", label: "Night Guard", type: "number", min: 0, step: "0.01" },
-          { name: "fridayDayGuard", label: "Friday Day Guard", type: "number", min: 0, step: "0.01" },
-          { name: "fridayNightGuard", label: "Friday Night Guard", type: "number", min: 0, step: "0.01" },
-          { name: "absence", label: "Absence", type: "number", min: 0, step: "0.01" },
-          { name: "bonus", label: "Bonus", type: "number", min: 0, step: "0.01" },
-          { name: "leave", label: "Leave", type: "number", min: 0, step: "0.01" },
-          { name: "penalties", label: "Penalties", type: "number", min: 0, step: "0.01" },
-          { name: "advances", label: "Advances", type: "number", min: 0, step: "0.01" },
-          { name: "status", label: "Status", type: "select", options: salaryStatuses, value: "Draft" },
-          { name: "remark", label: "Remark", type: "textarea", full: true },
-        ],
-        "Save salary",
-        { periodScoped: true }
-      )}
-      ${renderSection(
-        "Salary Report",
-        renderTable(
-          [
-            { label: "Person", value: (row) => employeeName(row.employeeId) },
-            { label: "Position", value: (row) => employeeFunction(row.employeeId) },
-            { label: "Net Salary", key: "baseNetSalary", amount: true, format: money },
-            { label: "Overtime", key: "overtimePresence", amount: true, format: money },
-            { label: "LAM Travel", key: "lamTravel", amount: true, format: money },
-            { label: "Guards", value: (row) => money(number(row.nightGuard) + number(row.fridayDayGuard) + number(row.fridayNightGuard)), amount: true },
-            { label: "Absence", key: "absence", amount: true, format: money },
-            { label: "Bonus", key: "bonus", amount: true, format: money },
-            { label: "Deductions", value: (row) => money(number(row.penalties) + number(row.advances)), amount: true },
-            { label: "Salary", key: "finalSalary", amount: true, format: money },
-            { label: "Status", value: (row) => statusPill(row.status), html: true },
-          ],
-          scopedRows("salaryReports"),
-          { collection: "salaryReports" }
-        )
-      )}
-    `;
-  }
-
-  function employeeFunction(employeeId) {
-    const employee = state.employees.find((row) => row.id === employeeId);
-    return employee ? employee.function : "";
-  }
-
-  function renderReports() {
-    const reportOptions = [
-      ["encashment", "Encashment Statement"],
-      ["supplier", "Supplier Statement"],
-      ["partner", "Subcontractor Statement"],
-      ["cashExpenses", "Cash Expenses"],
-      ["cashMovement", "Cash Movement"],
-      ["balance", "Monthly Balance"],
-      ["attendance", "Attendance"],
-      ["salary", "Salary Report"],
-      ["vehicle", "Service Vehicle"],
-      ["cheque", "Cheque Statement"],
-    ];
-    return `
-      ${renderHeader(
-        "Reports",
-        "Report preview, print, official trace, and CSV export.",
-        `<select class="report-select" data-report-select>${optionList(reportOptions, activeReport)}</select>
-         <button class="icon-btn" type="button" title="Print" data-action="print">P</button>
-         <button class="icon-btn secondary" type="button" title="Official PDF print" data-action="official-report">O</button>
-         <button class="icon-btn primary" type="button" title="Export Excel CSV" data-action="export-csv">E</button>`
-      )}
-      ${renderReportSourceForm()}
-      ${renderSection("Preview", renderReportPreview())}
-      ${renderSection(
-        "Export History",
-        renderTable(
-          [
-            { label: "Report", key: "reportName" },
-            { label: "Period", key: "period" },
-            { label: "Format", key: "format" },
-            { label: "Generated By", key: "generatedBy" },
-            { label: "Generated At", value: (row) => new Date(row.generatedAt).toLocaleString() },
-          ],
-          state.reportExports.slice(0, 20),
-          { empty: "No export history yet." }
-        )
-      )}
-    `;
-  }
-
-  function renderReportSourceForm() {
-    if (activeReport === "vehicle") {
-      return renderForm(
-        "Service Vehicle Entry",
-        "vehicle",
-        [
-          { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-          { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-          { name: "details", label: "Details", required: true },
-          { name: "mileage", label: "Mileage", type: "number", min: 0 },
-          { name: "gplExtraKm", label: "GPL / Extra KM", type: "number", min: 0, step: "0.01" },
-          { name: "essenceExtraKm", label: "Essence / Extra KM", type: "number", min: 0, step: "0.01" },
-        ],
-        "Save vehicle",
-        { periodScoped: true }
-      );
-    }
-    if (activeReport === "cheque") {
-      return renderForm(
-        "Cheque Entry",
-        "cheque",
-        [
-          { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-          { name: "beneficiary", label: "Beneficiary", required: true },
-          { name: "chequeNumber", label: "Cheque Number", required: true },
-          { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-          { name: "entries", label: "Entries", type: "number", min: 0, step: "0.01" },
-          { name: "exits", label: "Exits", type: "number", min: 0, step: "0.01" },
-          { name: "designation", label: "Designation", span: 2 },
-        ],
-        "Save cheque",
-        { periodScoped: true }
-      );
-    }
-    if (activeReport === "encashment") {
-      return renderForm(
-        "Encashment Entry",
-        "encashment",
-        [
-          { name: "date", label: "Date", type: "date", value: defaultDate(), required: true },
-          { name: "designation", label: "Designation", value: "DIVERS CLIENTS", required: true },
-          { name: "amount", label: "Amount", type: "number", min: 0, step: "0.01", required: true },
-          { name: "observations", label: "Observations", type: "textarea", full: true },
-        ],
-        "Save encashment",
-        { periodScoped: true }
-      );
-    }
-    return "";
-  }
-
-  function reportDataset() {
-    const t = totals();
-    if (activeReport === "supplier") {
-      return {
-        title: "Supplier Statement",
-        columns: [
-          { label: "Supplier", value: (row) => supplierName(row.supplierId) },
-          { label: "Amount", key: "orderTotal", amount: true, format: money },
-          { label: "Payment", key: "paidAmount", amount: true, format: money },
-          { label: "Remaining", key: "remainingAmount", amount: true, format: money },
-          { label: "Observation", key: "observation" },
-        ],
-        rows: scopedRows("supplierTransactions"),
-        total: `Total remaining: ${money(t.supplierRemaining)}`,
-      };
-    }
-    if (activeReport === "partner") {
-      return {
-        title: "Subcontractor and Convention Statement",
-        columns: [
-          { label: "Type", key: "type" },
-          { label: "Name", key: "name" },
-          { label: "Amount", key: "amount", amount: true, format: money },
-          { label: "Payment", key: "payment", amount: true, format: money },
-          { label: "Remaining", key: "remainingBalance", amount: true, format: money },
-          { label: "Date", key: "receptionDate" },
-          { label: "Observation", key: "remarks" },
-        ],
-        rows: scopedRows("partners"),
-        total: `Total remaining: ${money(sum(scopedRows("partners"), "remainingBalance"))}`,
-      };
-    }
-    if (activeReport === "cashExpenses") {
-      return {
-        title: "Cash Expenses",
-        columns: [
-          { label: "Date", key: "date" },
-          { label: "Designation", key: "designation" },
-          { label: "Amount", key: "amount", amount: true, format: money },
-          { label: "Remark", key: "remark" },
-        ],
-        rows: scopedRows("cashExpenses"),
-        total: `Total: ${money(sum(scopedRows("cashExpenses"), "amount"))}`,
-      };
-    }
-    if (activeReport === "cashMovement") {
-      return {
-        title: "Cash Movement",
-        columns: [
-          { label: "Date", key: "date" },
-          { label: "Cash CV", key: "cashCv", amount: true, format: money },
-          { label: "Cash C", key: "cashC", amount: true, format: money },
-          { label: "TPE", key: "tpe", amount: true, format: money },
-          { label: "Total", key: "total", amount: true, format: money },
-        ],
-        rows: scopedRows("cashMovements"),
-        total: `Total: ${money(sum(scopedRows("cashMovements"), "total"))}`,
-      };
-    }
-    if (activeReport === "balance") {
-      return {
-        title: "Monthly Balance",
-        columns: [
-          { label: "Indicator", key: "indicator" },
-          { label: "Value", key: "value", amount: true, format: money },
-        ],
-        rows: [
-          { indicator: "Revenue", value: t.globalRevenue },
-          { indicator: "Expenses", value: t.expensesTotal },
-          { indicator: "Profitability", value: t.profitability },
-          { indicator: "Investments", value: t.investments },
-          { indicator: "Net Profitability", value: t.netProfitability },
-          { indicator: "Real Safe Net", value: t.realSafeNet },
-        ],
-        total: `Net profitability: ${money(t.netProfitability)}`,
-      };
-    }
-    if (activeReport === "attendance") {
-      return {
-        title: "Attendance",
-        columns: [
-          { label: "Date", key: "date" },
-          { label: "Employee", value: (row) => employeeName(row.employeeId) },
-          { label: "Code", key: "dayCode" },
-          { label: "Note", key: "note" },
-        ],
-        rows: scopedRows("attendance"),
-        total: `${scopedRows("attendance").length} attendance entries`,
-      };
-    }
-    if (activeReport === "salary") {
-      return {
-        title: "Salary Report",
-        columns: [
-          { label: "Employee", value: (row) => employeeName(row.employeeId) },
-          { label: "Position", value: (row) => employeeFunction(row.employeeId) },
-          { label: "Salary", key: "finalSalary", amount: true, format: money },
-          { label: "Status", key: "status" },
-          { label: "Remark", key: "remark" },
-        ],
-        rows: scopedRows("salaryReports"),
-        total: `Total salaries: ${money(sum(scopedRows("salaryReports"), "finalSalary"))}`,
-      };
-    }
-    if (activeReport === "vehicle") {
-      return {
-        title: "Service Vehicle Tracking",
-        columns: [
-          { label: "Date", key: "date" },
-          { label: "Amount", key: "amount", amount: true, format: money },
-          { label: "Details", key: "details" },
-          { label: "Mileage", key: "mileage" },
-          { label: "GPL / Extra KM", key: "gplExtraKm" },
-          { label: "Essence / Extra KM", key: "essenceExtraKm" },
-        ],
-        rows: scopedRows("vehicleExpenses"),
-        total: `Total amount: ${money(sum(scopedRows("vehicleExpenses"), "amount"))}`,
-      };
-    }
-    if (activeReport === "cheque") {
-      return {
-        title: "Cheque Statement",
-        columns: [
-          { label: "Date", key: "date" },
-          { label: "Beneficiary", key: "beneficiary" },
-          { label: "Cheque", key: "chequeNumber" },
-          { label: "Amount", key: "amount", amount: true, format: money },
-          { label: "Entries", key: "entries", amount: true, format: money },
-          { label: "Exits", key: "exits", amount: true, format: money },
-          { label: "Designation", key: "designation" },
-        ],
-        rows: scopedRows("cheques"),
-        total: `Total exits: ${money(sum(scopedRows("cheques"), "exits"))}`,
-      };
-    }
-    return {
-      title: "Encashment Statement",
-      columns: [
-        { label: "Number", value: (_row, index) => index + 1 },
-        { label: "Date", key: "date" },
-        { label: "Designation", key: "designation" },
-        { label: "Observations", key: "observations" },
-        { label: "Amounts", key: "amount", amount: true, format: money },
-      ],
-      rows: scopedRows("encashments"),
-      total: `Total: ${money(sum(scopedRows("encashments"), "amount"))}`,
-    };
-  }
-
-  function renderReportPreview() {
-    const dataset = reportDataset();
-    const columns = dataset.columns.map((column) => ({
-      ...column,
-      value: column.value
-        ? (row) => {
-            const index = dataset.rows.indexOf(row);
-            return column.value(row, index);
-          }
-        : column.value,
-    }));
-    return `
-      <div class="report-preview">
-        <div class="report-title">
-          <div>
-            <h2>${escapeHtml(dataset.title)}</h2>
-            <span>ModernLam - Laboratoire d'Analyses Medicales</span>
-          </div>
-          <div>
-            <strong>${escapeHtml(monthNames[state.selected.month - 1])} ${state.selected.year}</strong><br>
-            <span>Generated by Admin - ${escapeHtml(new Date().toLocaleDateString())}</span>
-          </div>
-        </div>
-        ${renderTable(columns, dataset.rows, { empty: "No source data for this report." })}
-        <div class="signature-row">
-          <strong>${escapeHtml(dataset.total)}</strong>
-          <div class="signature-box">Stamp</div>
-          <div class="signature-box">Signature</div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderHR() {
-    const employeeOptions = state.employees.map((employee) => [employee.id, employee.fullName]);
-    return `
-      ${renderHeader("Human Resources", "Employees, contracts, leave balances, and administrative files.")}
-      <div class="grid three">
-        ${renderForm(
-          "Employee",
-          "employee",
-          [
-            { name: "fullName", label: "Full Name", required: true, span: 2 },
-            { name: "function", label: "Function", required: true },
-            { name: "birthDate", label: "Birth Date", type: "date" },
-            { name: "birthPlace", label: "Birth Place" },
-            { name: "phone01", label: "Phone 01" },
-            { name: "phone02", label: "Phone 02" },
-            { name: "socialSecurityNumber", label: "Social Security Number" },
-            { name: "anemNumber", label: "ANEM Number" },
-            { name: "status", label: "Status", type: "select", options: ["Active", "Inactive"], value: "Active" },
-            { name: "address", label: "Address", type: "textarea", full: true },
-          ],
-          "Save employee"
-        )}
-        ${renderForm(
-          "Contract",
-          "contract",
-          [
-            { name: "employeeId", label: "Employee", type: "select", options: employeeOptions, required: true },
-            { name: "hireDate", label: "Hire Date", type: "date", required: true },
-            { name: "cnasRegistrationDate", label: "CNAS Date", type: "date" },
-            { name: "contractType", label: "Contract", type: "select", options: ["CDI", "CDD", "Internship", "Other"] },
-            { name: "startsAt", label: "From", type: "date", required: true },
-            { name: "endsAt", label: "To", type: "date" },
-            { name: "resignationDate", label: "Resignation", type: "date" },
-            { name: "status", label: "Status", type: "select", options: ["Active", "Expired", "Resigned"], value: "Active" },
-            { name: "remark", label: "Remark", type: "textarea", full: true },
-          ],
-          "Save contract"
-        )}
-        ${renderForm(
-          "Leave Balance",
-          "leave",
-          [
-            { name: "employeeId", label: "Employee", type: "select", options: employeeOptions, required: true },
-            { name: "year", label: "Year", type: "number", value: state.selected.year, required: true },
-            { name: "acquiredDays", label: "Acquired Days", type: "number", min: 0, step: "0.5", required: true },
-            { name: "usedDays", label: "Used Days", type: "number", min: 0, step: "0.5" },
-            { name: "remark", label: "Remark", type: "textarea", full: true },
-          ],
-          "Save leave"
-        )}
-      </div>
-      ${renderSection(
-        "Employees",
-        renderTable(
-          [
-            { label: "Full Name", key: "fullName" },
-            { label: "Function", key: "function" },
-            { label: "Birth Date", key: "birthDate" },
-            { label: "Age", value: (row) => calculateAge(row.birthDate) },
-            { label: "Phone 01", key: "phone01" },
-            { label: "Status", key: "status" },
-            { label: "Active Contract", value: (row) => activeContractLabel(row.id) },
-            { label: "Year Leave", value: (row) => leaveLabel(row.id) },
-          ],
-          state.employees,
-          { collection: "employees" }
-        )
-      )}
-      ${renderSection(
-        "Contracts",
-        renderTable(
-          [
-            { label: "Employee", value: (row) => employeeName(row.employeeId) },
-            { label: "Hire Date", key: "hireDate" },
-            { label: "CNAS", key: "cnasRegistrationDate" },
-            { label: "Contract", key: "contractType" },
-            { label: "From", key: "startsAt" },
-            { label: "To", key: "endsAt" },
-            { label: "Resignation", key: "resignationDate" },
-            { label: "Status", key: "status" },
-          ],
-          state.contracts,
-          { collection: "contracts" }
-        )
-      )}
-      ${renderSection(
-        "Leave",
-        renderTable(
-          [
-            { label: "Employee", value: (row) => employeeName(row.employeeId) },
-            { label: "Year", key: "year" },
-            { label: "Acquired", key: "acquiredDays" },
-            { label: "Used", key: "usedDays" },
-            { label: "Remaining", key: "remainingDays" },
-            { label: "Remark", key: "remark" },
-          ],
-          state.leaves,
-          { collection: "leaves" }
-        )
-      )}
-    `;
-  }
-
-  function calculateAge(date) {
-    if (!date) return "";
-    const birth = new Date(date);
-    if (Number.isNaN(birth.getTime())) return "";
-    const now = new Date();
-    let age = now.getFullYear() - birth.getFullYear();
-    const monthDiff = now.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age -= 1;
-    return age;
-  }
-
-  function activeContractLabel(employeeId) {
-    const contract = state.contracts.find((row) => row.employeeId === employeeId && row.status === "Active");
-    return contract ? `${contract.contractType} from ${contract.startsAt}` : "None";
-  }
-
-  function leaveLabel(employeeId) {
-    const leave = state.leaves.find((row) => row.employeeId === employeeId && number(row.year) === state.selected.year);
-    return leave ? `${leave.remainingDays} days` : "No balance";
-  }
-
-  function renderAdmin() {
-    return `
-      ${renderHeader(
-        "Administration",
-        "Users, simplified permissions, audit log, backup, and browser-storage controls.",
-        `<button class="text-btn secondary" type="button" data-action="download-backup" title="Download backup">B Backup</button>
-         <button class="text-btn danger" type="button" data-action="reset-data" title="Reset prototype data">X Reset</button>`
-      )}
-      ${renderForm(
-        "User",
-        "user",
-        [
-          { name: "username", label: "Username", required: true },
-          { name: "fullName", label: "Full Name", required: true },
-          { name: "role", label: "Role", type: "select", options: roles },
-          { name: "isActive", label: "Status", type: "select", options: [["true", "Active"], ["false", "Inactive"]], value: "true" },
-        ],
-        "Save user"
-      )}
-      ${renderSection(
-        "Users",
-        renderTable(
-          [
-            { label: "Username", key: "username" },
-            { label: "Full Name", key: "fullName" },
-            { label: "Role", key: "role" },
-            { label: "Active", value: (row) => (row.isActive ? "Yes" : "No") },
-            { label: "Last Login", value: (row) => (row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString() : "") },
-          ],
-          state.users,
-          { collection: "users" }
-        )
-      )}
-      ${renderSection("Permissions Matrix", renderPermissionsMatrix())}
-      ${renderSection(
-        "Audit Log",
-        renderTable(
-          [
-            { label: "Date", value: (row) => new Date(row.createdAt).toLocaleString() },
-            { label: "User", key: "user" },
-            { label: "Action", key: "action" },
-            { label: "Entity", key: "entityType" },
-            { label: "Entity ID", key: "entityId" },
-            { label: "Reason", key: "reason" },
-          ],
-          state.auditLogs.slice(0, 80),
-          { empty: "No audit entries." }
-        )
-      )}
-    `;
-  }
-
-  function renderPermissionsMatrix() {
-    const rows = [
-      ["Dashboard", "Full", "Read", "Read", "Limited", "Limited", "Read"],
-      ["Cash Closing", "Full", "Read", "Full", "Entry", "No", "Read"],
-      ["Cash & Safe", "Full", "Read", "Full", "Limited", "No", "Read"],
-      ["Suppliers", "Full", "Read", "Full", "No", "No", "Read"],
-      ["Attendance", "Full", "Read", "Read", "No", "Full", "Read"],
-      ["Salaries", "Full", "Read", "Review", "No", "Full", "Limited"],
-      ["Reports", "Full", "Full", "Full", "Limited", "Limited", "Read"],
-      ["HR", "Full", "Read", "No", "No", "Full", "Limited"],
-      ["Administration", "Full", "No", "No", "No", "No", "No"],
-    ].map((row) => ({
-      screen: row[0],
-      admin: row[1],
-      direction: row[2],
-      accountant: row[3],
-      cashDesk: row[4],
-      hr: row[5],
-      viewer: row[6],
-    }));
-    return renderTable(
-      [
-        { label: "Screen", key: "screen" },
-        { label: "Admin", key: "admin" },
-        { label: "Direction", key: "direction" },
-        { label: "Accountant", key: "accountant" },
-        { label: "Cash Desk", key: "cashDesk" },
-        { label: "HR", key: "hr" },
-        { label: "Viewer", key: "viewer" },
-      ],
-      rows
-    );
+  function getReportDataset() {
+    if (reportDatasetProvider) return reportDatasetProvider();
+    return { title: "Report", columns: [], rows: [], total: "" };
   }
 
   function renderTopbar() {
@@ -1974,21 +904,10 @@
   }
 
   function renderContent() {
-    const renderers = {
-      dashboard: renderDashboard,
-      cashClosing: renderCashClosing,
-      cashSafe: renderCashSafe,
-      balance: renderBalance,
-      suppliers: renderSuppliers,
-      partners: renderPartners,
-      attendance: renderAttendance,
-      salaries: renderSalaries,
-      reports: renderReports,
-      hr: renderHR,
-      admin: renderAdmin,
-    };
-    const view = renderers[activeView] ? activeView : "dashboard";
-    return `<main class="content">${renderers[view]()}</main>`;
+    const view = viewRenderers[activeView] ? activeView : "dashboard";
+    const renderer = viewRenderers[view];
+    const body = renderer ? renderer() : `<div class="empty-state">The selected interface is not loaded.</div>`;
+    return `<main class="content">${body}</main>`;
   }
 
   function render() {
@@ -2487,7 +1406,7 @@
   }
 
   function exportCurrentReportCsv() {
-    const dataset = reportDataset();
+    const dataset = getReportDataset();
     const rows = dataset.rows;
     const headers = dataset.columns.map((column) => column.label);
     const lines = [headers.join(",")];
@@ -2538,7 +1457,9 @@
   function resetData() {
     const confirmed = window.confirm("Reset all browser prototype data?");
     if (!confirmed) return;
-    state = seedState();
+    const freshState = seedState();
+    Object.keys(state).forEach((key) => delete state[key]);
+    Object.assign(state, freshState);
     saveState();
     showToast("Prototype data reset.");
     render();
@@ -2567,7 +1488,7 @@
     if (action === "generate-salaries") generateSalaryDrafts();
     if (action === "print") window.print();
     if (action === "official-report") {
-      recordExport(reportDataset().title, "Official PDF print");
+      recordExport(getReportDataset().title, "Official PDF print");
       window.print();
     }
     if (action === "export-csv") exportCurrentReportCsv();
@@ -2596,6 +1517,59 @@
   document.addEventListener("click", handleClick);
   document.addEventListener("change", handleChange);
 
-  saveState();
-  render();
+  function init() {
+    saveState();
+    render();
+  }
+
+  window.ModernLamPrototype = {
+    state,
+    monthNames,
+    supplierCategories,
+    paymentModes,
+    partnerTypes,
+    paymentStatuses,
+    salaryStatuses,
+    periodStatuses,
+    dayCodes,
+    roles,
+    currentPeriodKey,
+    pad,
+    getPeriod,
+    isClosedPeriod,
+    formatDate,
+    defaultDate,
+    daysInMonth,
+    number,
+    sum,
+    money,
+    escapeHtml,
+    activeRows,
+    scopedRows,
+    employeeName,
+    supplierName,
+    paymentTargetLabel,
+    employeeFunction,
+    audit,
+    addRecord,
+    cancelRecord,
+    showToast,
+    statusClass,
+    statusPill,
+    formData,
+    optionList,
+    renderField,
+    renderForm,
+    renderTable,
+    renderSection,
+    renderHeader,
+    closedNotice,
+    totals,
+    renderMetrics,
+    registerView,
+    setReportDatasetProvider,
+    getActiveReport,
+    getReportDataset,
+    init,
+  };
 })();
