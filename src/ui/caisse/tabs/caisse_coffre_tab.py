@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont, QColor
 from database import data_manager
 from ui.table_helper import make_table_editable
-from ui.caisse.dialogs import MouvementCaisseDialog, MouvementCoffreDialog
+from ui.caisse.dialogs import MouvementCaisseDialog, MouvementCoffreDialog, DepenseCaisseDialog
 
 class CaisseCoffreTab(QWidget):
     def __init__(self, parent=None):
@@ -194,6 +194,33 @@ class CaisseCoffreTab(QWidget):
         
         self.sub_tabs.addTab(tab_sorties, "SORTIES COFFRE")
         
+        # 5. Tab: DÉPENSES CAISSE
+        tab_depenses = QWidget()
+        depenses_layout = QVBoxLayout(tab_depenses)
+        
+        self.tbl_depenses = QTableWidget()
+        self.tbl_depenses.setColumnCount(3)
+        self.tbl_depenses.setHorizontalHeaderLabels(["DATE", "DESIGNATION", "MONTANT"])
+        self.tbl_depenses.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_depenses.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tbl_depenses.setSelectionBehavior(QAbstractItemView.SelectRows)
+        
+        self.toolbar_depenses = make_table_editable(
+            self.tbl_depenses, "Details_Depenses_Caisse", "id_depense_caisse",
+            lambda r: self.tbl_depenses.item(r, 0).data(Qt.UserRole) if self.tbl_depenses.item(r, 0) else None,
+            DepenseCaisseDialog, self.load_data, self,
+            add_callback=self.add_depense_caisse,
+            add_label="Ajouter"
+        )
+        depenses_layout.addWidget(self.toolbar_depenses)
+        depenses_layout.addWidget(self.tbl_depenses)
+        
+        self.lbl_total_depenses = QLabel("Total: 0.00 DZD")
+        self.lbl_total_depenses.setFont(QFont("Arial", 12, QFont.Bold))
+        depenses_layout.addWidget(self.lbl_total_depenses, alignment=Qt.AlignRight)
+        
+        self.sub_tabs.addTab(tab_depenses, "DÉPENSES CAISSE")
+        
         # 5. Tab: DÉPENSES ACHATS
         from ui.fournisseurs.tabs.achats_tab import AchatsTab
         self.tab_achats = AchatsTab(self)
@@ -232,6 +259,12 @@ class CaisseCoffreTab(QWidget):
     def add_coffre_mvt_sortie(self):
         from ui.caisse.dialogs import MouvementCoffreDialog
         dlg = MouvementCoffreDialog(self, default_type="SORTIE")
+        if dlg.exec():
+            self.load_data()
+
+    def add_depense_caisse(self):
+        from ui.caisse.dialogs import DepenseCaisseDialog
+        dlg = DepenseCaisseDialog(self)
         if dlg.exec():
             self.load_data()
 
@@ -338,6 +371,22 @@ class CaisseCoffreTab(QWidget):
 
         # 3. Load Entrées & Sorties (Mouvement Coffre)
         data_coffre = data_manager.caisse.get_coffre_movements(month, year)
+        
+        # Load Dépenses Caisse
+        data_depenses = data_manager.caisse.get_depenses_caisse(month, year)
+        self.tbl_depenses.setRowCount(len(data_depenses))
+        total_depenses = 0.0
+        for i, row in enumerate(data_depenses):
+            item_date = QTableWidgetItem(str(row['date_mouvement']))
+            item_date.setData(Qt.UserRole, row['id_depense_caisse'])
+            self.tbl_depenses.setItem(i, 0, item_date)
+            self.tbl_depenses.setItem(i, 1, QTableWidgetItem(str(row['designation'])))
+            
+            montant = float(row['montant'])
+            total_depenses += montant
+            self.tbl_depenses.setItem(i, 2, QTableWidgetItem(f"{montant:.2f}"))
+        
+        self.lbl_total_depenses.setText(f"Total: {total_depenses:,.2f} DZD")
         
         entrees = [d for d in data_coffre if d['type_operation'] == 'ENTREE']
         sorties = [d for d in data_coffre if d['type_operation'] == 'SORTIE']
