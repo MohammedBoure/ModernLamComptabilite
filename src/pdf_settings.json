@@ -1,0 +1,15 @@
+{
+    "theme_color": "#007572",
+    "doc_title": "MODERNLAM",
+    "banner_height_cm": 4.6,
+    "banner_path": "D:/git/ModernLamComptabilite/entete.png",
+    "banner_img_x_cm": 0.0,
+    "banner_img_y_cm": 0.0,
+    "banner_img_w_cm": 21.0,
+    "banner_img_h_cm": 4.8,
+    "table_start_y_cm": 6.7,
+    "footer_left_label": "Signature de l'Agent",
+    "footer_right_label": "Visa Direction",
+    "nif": "123123131",
+    "rip": "2342342342"
+}

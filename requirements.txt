@@ -1,0 +1,4 @@
+PySide6
+mysql-connector-python
+pandas
+openpyxl
