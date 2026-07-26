@@ -267,3 +267,34 @@ class HRManager:
         query = "DELETE FROM Fiches_Paie WHERE id_employe = %s AND mois = %s AND annee = %s"
         success, _ = self.db.execute(query, (id_employe, mois, annee))
         return success
+
+    def get_presences_stats_by_period(self, start_date, end_date, id_employe=None):
+        """
+        Retrieves presence records between start_date and end_date (inclusive).
+        If id_employe is provided, filters for that specific employee.
+        """
+        params = [start_date, end_date]
+        emp_filter = ""
+        if id_employe:
+            emp_filter = " AND p.id_employe = %s"
+            params.append(id_employe)
+
+        query = f"""
+            SELECT 
+                p.id_presence,
+                p.id_employe,
+                e.nom_prenom,
+                e.fonction,
+                IFNULL(e.heures_travail_jour, 8.0) as heures_travail_jour,
+                p.date_presence,
+                p.etat_jour,
+                p.heures_sup,
+                p.heure_entree,
+                p.heure_sortie
+            FROM Presences p
+            JOIN Employes e ON p.id_employe = e.id_employe
+            WHERE p.date_presence >= %s AND p.date_presence <= %s {emp_filter}
+            ORDER BY p.date_presence DESC, e.nom_prenom ASC
+        """
+        return self.db.fetch_all(query, tuple(params))
+

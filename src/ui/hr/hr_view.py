@@ -5,6 +5,7 @@ from PySide6.QtCore import QDate, Qt
 from .tabs.employes_tab import EmployesTab
 from .tabs.presences_tab import PresencesTab
 from .tabs.salaires_tab import SalairesTab
+from .tabs.statistiques_tab import StatistiquesTab
 
 class HRView(QWidget):
     def __init__(self):
@@ -58,6 +59,10 @@ class HRView(QWidget):
         self.tab_salaires = SalairesTab(self)
         self.tabs.addTab(self.tab_salaires, "Salaires (Fiches de Paie)")
         
+        # Tab 4: Statistiques RH
+        self.tab_stats = StatistiquesTab(self)
+        self.tabs.addTab(self.tab_stats, "Statistiques RH")
+
         layout.addWidget(self.tabs)
         
         self.on_filter_changed()
@@ -74,3 +79,6 @@ class HRView(QWidget):
             self.tab_presences.load_data(filter_month, filter_year)
         if hasattr(self.tab_salaires, 'load_data_filtered'):
             self.tab_salaires.load_data_filtered(filter_month, filter_year)
+        if hasattr(self.tab_stats, 'load_data'):
+            self.tab_stats.load_data(filter_month, filter_year)
+
