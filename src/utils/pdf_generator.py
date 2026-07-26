@@ -370,4 +370,143 @@ class PdfGenerator:
         title_suffix = f" - Mouvement Profitabilité ({month_name} {year})"
         return self.generate_pdf(output_path, title_suffix, html)
 
+    def generate_rapport_comptabilite_pdf(self, output_path, month_name, year, data):
+        """
+        Generate full official PDF matching 'excel/01) Rapport de comptabilité Décembre 2025.docx'
+        """
+        rev = data['revenus']
+        dep = data['depenses']
+        res = data['resultat']
+
+        html = f"""
+        <div style="font-family: Arial, sans-serif; font-size: 10pt; color: #1e293b;">
+            <div style="text-align: center; border-bottom: 2px solid #007572; padding-bottom: 8px; margin-bottom: 12px;">
+                <h2 style="margin: 0; color: #007572; font-size: 16pt;">RAPPORT DE COMPTABILITÉ – {month_name.upper()} {year}</h2>
+                <p style="margin: 3px 0 0 0; font-size: 9pt; color: #64748b;">Laboratoire d'Analyses Médicales MODERNLAM | Agrément N° 2024/08 DSP JIJEL</p>
+            </div>
+
+            <!-- SECTION I: REVENUS -->
+            <h3 style="color: #007572; border-bottom: 1px solid #007572; padding-bottom: 3px; margin-top: 10px; margin-bottom: 8px;">I. RAPPORT DES REVENUS</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9.5pt;">
+                <thead>
+                    <tr style="background-color: #007572; color: white;">
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; width: 40px;">N°</th>
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; text-align: left;">Catégorie / Désignation</th>
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; width: 160px;">Montant Hors Taxe (DA)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">01</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1;">Les Revenus de Clientèle Ville</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{rev['ville']:,.2f} DA</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">02</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1;">Sous-Traitance (Conventions & Partenaires)</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{rev['total_st']:,.2f} DA</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">03</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1;">Revenus Supplémentaires (Coffre)</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{rev['total_supp']:,.2f} DA</td>
+                    </tr>
+                    <tr style="background-color: #e3f2fd; font-weight: bold; color: #1565c0;">
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">04</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1;">Chiffre d'Affaires Mensuel Total</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">{rev['chiffre_affaires']:,.2f} DA</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- SECTION II: DÉPENSES -->
+            <h3 style="color: #b91c1c; border-bottom: 1px solid #b91c1c; padding-bottom: 3px; margin-top: 10px; margin-bottom: 8px;">II. RAPPORT DES DÉPENSES</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9.5pt;">
+                <thead>
+                    <tr style="background-color: #b91c1c; color: white;">
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; width: 40px;">N°</th>
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; text-align: left;">Catégorie de Dépense</th>
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; width: 130px;">Montant Payé (DA)</th>
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; width: 130px;">Montant Dette (DA)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+
+        idx = 1
+        for cat_name, cat_info in dep['categories'].items():
+            bg = "#f8fafc" if idx % 2 == 1 else "#ffffff"
+            html += f"""
+                    <tr style="background-color: {bg};">
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">{idx:02d}</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1;">{cat_name}</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">{cat_info['paye']:,.2f} DA</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">{cat_info['dette']:,.2f} DA</td>
+                    </tr>
+            """
+            idx += 1
+
+        html += f"""
+                    <tr style="background-color: #ffebee; font-weight: bold; color: #b91c1c;">
+                        <td colspan="2" style="padding: 6px; border: 1px solid #cbd5e1;">Charges Totales Mensuelles</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">{dep['total_paye']:,.2f} DA</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">{dep['total_dette']:,.2f} DA</td>
+                    </tr>
+                    <tr style="background-color: #fee2e2; font-weight: bold; color: #991b1b;">
+                        <td colspan="2" style="padding: 6px; border: 1px solid #cbd5e1;">TOTAL DÉPENSES GLOBAL (Payé + Dette)</td>
+                        <td colspan="2" style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-size: 11pt;">{dep['total_global']:,.2f} DA</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- SECTION III: RÉSULTAT FINAL -->
+            <h3 style="color: #1e293b; border-bottom: 1px solid #1e293b; padding-bottom: 3px; margin-top: 10px; margin-bottom: 8px;">III. RÉSULTAT FINAL & PROFITABILITÉ</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 9.5pt;">
+                <thead>
+                    <tr style="background-color: #334155; color: white;">
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; width: 40px;">N°</th>
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; text-align: left;">Désignation</th>
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; width: 130px;">Crédit (DA)</th>
+                        <th style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; width: 130px;">Débit (DA)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">01</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1;">Les Revenus de Clientèle Ville</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{rev['ville']:,.2f} DA</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">-</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">02</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1;">Sous-Traitance</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{rev['total_st']:,.2f} DA</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">-</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">03</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1;">Les Revenus Supplémentaires</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{rev['total_supp']:,.2f} DA</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">-</td>
+                    </tr>
+                    <tr style="background-color: #fff1f2;">
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">04</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; font-weight: bold; color: #b91c1c;">Charges Totales Globales</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">-</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold; color: #b91c1c;">{dep['total_global']:,.2f} DA</td>
+                    </tr>
+                    <tr style="background-color: #f0fdf4; font-weight: bold;">
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">05</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; color: #15803d;">Profitabilité Nette Mensuelle</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; color: #15803d;">{res['profitabilite_nette']:,.2f} DA</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        """
+        title_suffix = f" - Rapport de Comptabilité ({month_name} {year})"
+        return self.generate_pdf(output_path, title_suffix, html)
+
+
 
