@@ -2,7 +2,7 @@ import datetime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QTabWidget,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QFrame,
-    QMessageBox, QFileDialog, QScrollArea, QProgressBar, QSizePolicy
+    QMessageBox, QFileDialog, QScrollArea, QProgressBar
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont, QColor
@@ -23,7 +23,7 @@ def adjust_table_height(table_widget):
     rows_h = sum(table_widget.rowHeight(r) for r in range(table_widget.rowCount()))
     frame_h = table_widget.frameWidth() * 2
     
-    total_h = header_h + rows_h + frame_h + 12
+    total_h = header_h + rows_h + frame_h + 10
     table_widget.setFixedHeight(max(total_h, 60))
 
 
@@ -39,18 +39,10 @@ class RapportsView(QWidget):
         main_layout.setSpacing(12)
 
         # ----------------------------------------------------
-        # 1. Top Control Bar (Filter Month/Year & Action Buttons)
+        # 1. Top Filter & Toolbar (Flat Layout without heavy containers)
         # ----------------------------------------------------
-        top_card = QFrame()
-        top_card.setStyleSheet("""
-            QFrame {
-                background-color: #ffffff;
-                border-radius: 8px;
-                border: 1px solid #e0e0e0;
-            }
-        """)
-        top_layout = QHBoxLayout(top_card)
-        top_layout.setContentsMargins(15, 10, 15, 10)
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 5)
         top_layout.setSpacing(12)
 
         lbl_title = QLabel("📊 Rapports Financiers & Comptabilité Mensuelle")
@@ -114,7 +106,7 @@ class RapportsView(QWidget):
         top_layout.addWidget(self.btn_refresh)
         top_layout.addWidget(self.btn_export_pdf)
 
-        main_layout.addWidget(top_card)
+        main_layout.addLayout(top_layout)
 
         # ----------------------------------------------------
         # 2. Tab Widget
@@ -137,7 +129,7 @@ class RapportsView(QWidget):
         layout = QVBoxLayout(self.tab_compta)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Single Master Scroll Area for the whole page
+        # Single Master Scroll Area for the whole page (No nested box containers!)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
@@ -145,17 +137,12 @@ class RapportsView(QWidget):
         container = QWidget()
         c_layout = QVBoxLayout(container)
         c_layout.setContentsMargins(10, 10, 10, 10)
-        c_layout.setSpacing(20)
+        c_layout.setSpacing(18)
 
         # --- SECTION I: RAPPORT DES REVENUS ---
-        grp_rev = QFrame()
-        grp_rev.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; }")
-        ly_rev = QVBoxLayout(grp_rev)
-        ly_rev.setSpacing(10)
-        
         lbl_rev = QLabel("I. RAPPORT DES REVENUS")
-        lbl_rev.setStyleSheet("font-size: 15px; font-weight: bold; color: #007572;")
-        ly_rev.addWidget(lbl_rev)
+        lbl_rev.setStyleSheet("font-size: 14px; font-weight: bold; color: #007572; border-bottom: 2px solid #007572; padding-bottom: 4px;")
+        c_layout.addWidget(lbl_rev)
 
         self.tbl_revenus = QTableWidget()
         self.tbl_revenus.setColumnCount(3)
@@ -164,19 +151,12 @@ class RapportsView(QWidget):
         self.tbl_revenus.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tbl_revenus.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_revenus.setAlternatingRowColors(True)
-        ly_rev.addWidget(self.tbl_revenus)
-
-        c_layout.addWidget(grp_rev)
+        c_layout.addWidget(self.tbl_revenus)
 
         # --- SECTION II: RAPPORT DES DÉPENSES ---
-        grp_dep = QFrame()
-        grp_dep.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; }")
-        ly_dep = QVBoxLayout(grp_dep)
-        ly_dep.setSpacing(10)
-
         lbl_dep = QLabel("II. RAPPORT DES DÉPENSES")
-        lbl_dep.setStyleSheet("font-size: 15px; font-weight: bold; color: #b91c1c;")
-        ly_dep.addWidget(lbl_dep)
+        lbl_dep.setStyleSheet("font-size: 14px; font-weight: bold; color: #b91c1c; border-bottom: 2px solid #b91c1c; padding-bottom: 4px;")
+        c_layout.addWidget(lbl_dep)
 
         self.tbl_depenses = QTableWidget()
         self.tbl_depenses.setColumnCount(4)
@@ -185,19 +165,12 @@ class RapportsView(QWidget):
         self.tbl_depenses.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tbl_depenses.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_depenses.setAlternatingRowColors(True)
-        ly_dep.addWidget(self.tbl_depenses)
-
-        c_layout.addWidget(grp_dep)
+        c_layout.addWidget(self.tbl_depenses)
 
         # --- SECTION III: RÉSULTAT FINAL & PROFITABILITÉ ---
-        grp_res = QFrame()
-        grp_res.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; }")
-        ly_res = QVBoxLayout(grp_res)
-        ly_res.setSpacing(10)
-
         lbl_res = QLabel("III. RÉSULTAT FINAL & PROFITABILITÉ")
-        lbl_res.setStyleSheet("font-size: 15px; font-weight: bold; color: #1e293b;")
-        ly_res.addWidget(lbl_res)
+        lbl_res.setStyleSheet("font-size: 14px; font-weight: bold; color: #1e293b; border-bottom: 2px solid #1e293b; padding-bottom: 4px;")
+        c_layout.addWidget(lbl_res)
 
         self.tbl_resultat = QTableWidget()
         self.tbl_resultat.setColumnCount(4)
@@ -206,9 +179,7 @@ class RapportsView(QWidget):
         self.tbl_resultat.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tbl_resultat.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_resultat.setAlternatingRowColors(True)
-        ly_res.addWidget(self.tbl_resultat)
-
-        c_layout.addWidget(grp_res)
+        c_layout.addWidget(self.tbl_resultat)
 
         c_layout.addStretch()
         scroll.setWidget(container)
@@ -227,17 +198,14 @@ class RapportsView(QWidget):
         c_layout.setContentsMargins(10, 10, 10, 10)
         c_layout.setSpacing(15)
 
-        # KPI Summary header
-        self.cards_frame = QFrame()
-        self.cards_frame.setStyleSheet("QFrame { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; }")
-        c_ly = QHBoxLayout(self.cards_frame)
-        
-        self.lbl_tot_dep = QLabel("Charges Globales: 0.00 DA")
-        self.lbl_tot_dep.setStyleSheet("font-size: 14px; font-weight: bold; color: #b91c1c;")
+        # Flat header bar without heavy container border
+        c_ly = QHBoxLayout()
+        self.lbl_tot_dep = QLabel("Charges Globales Mensuelles: 0.00 DA")
+        self.lbl_tot_dep.setStyleSheet("font-size: 14px; font-weight: bold; color: #b91c1c; padding: 5px 0;")
         c_ly.addWidget(self.lbl_tot_dep)
         c_ly.addStretch()
 
-        c_layout.addWidget(self.cards_frame)
+        c_layout.addLayout(c_ly)
 
         self.tbl_analytic = QTableWidget()
         self.tbl_analytic.setColumnCount(4)
@@ -355,7 +323,7 @@ class RapportsView(QWidget):
 
         self.tbl_depenses.setItem(d_idx, 1, item_t_lbl)
         self.tbl_depenses.setItem(d_idx, 2, item_t_paye)
-        self.tbl_depenses.setItem(d_idx, 3, item_t_dette)
+        self.tbl_depenses.setItem(d_idx, 3, item_dette)
         d_idx += 1
 
         item_g_lbl = QTableWidgetItem("TOTAL DÉPENSES GLOBAL (Payé + Dette)")

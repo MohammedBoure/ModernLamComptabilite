@@ -78,16 +78,10 @@ class StatistiquesTab(QWidget):
         # ----------------------------------------------------
         # 1. Header Toolbar / Filter Controls
         # ----------------------------------------------------
-        filter_card = QFrame()
-        filter_card.setStyleSheet("""
-            QFrame {
-                background-color: #ffffff;
-                border-radius: 8px;
-                border: 1px solid #e0e0e0;
-            }
-        """)
-        filter_layout = QHBoxLayout(filter_card)
-        filter_layout.setContentsMargins(12, 10, 12, 10)
+        # 1. Header Toolbar / Filter Controls (Flat Layout)
+        # ----------------------------------------------------
+        filter_layout = QHBoxLayout()
+        filter_layout.setContentsMargins(0, 0, 0, 5)
         filter_layout.setSpacing(12)
 
         # Employee Selector
@@ -164,22 +158,13 @@ class StatistiquesTab(QWidget):
         filter_layout.addWidget(self.btn_refresh)
         filter_layout.addWidget(self.btn_pdf)
 
-        main_layout.addWidget(filter_card)
+        main_layout.addLayout(filter_layout)
 
         # ----------------------------------------------------
-        # 2. KPI Summary Cards Grid (Classic Elegant Panel)
+        # 2. KPI Summary Cards Row (Flat Layout)
         # ----------------------------------------------------
-        self.kpi_container = QFrame()
-        self.kpi_container.setObjectName("kpi_container_frame")
-        self.kpi_container.setStyleSheet("""
-            QFrame#kpi_container_frame {
-                background-color: #f8fafc;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-            }
-        """)
-        self.cards_layout = QHBoxLayout(self.kpi_container)
-        self.cards_layout.setContentsMargins(10, 10, 10, 10)
+        self.cards_layout = QHBoxLayout()
+        self.cards_layout.setContentsMargins(0, 5, 0, 5)
         self.cards_layout.setSpacing(10)
 
         self.card_hours = self._create_kpi_card("Heures Travaillées", "0.0 h", "#007572")
@@ -198,7 +183,8 @@ class StatistiquesTab(QWidget):
         self.cards_layout.addWidget(self.card_hs, 1)
         self.cards_layout.addWidget(self.card_rate, 1)
 
-        main_layout.addWidget(self.kpi_container)
+        main_layout.addLayout(self.cards_layout)
+
 
 
         # ----------------------------------------------------
