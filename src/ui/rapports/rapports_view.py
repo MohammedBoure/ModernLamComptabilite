@@ -2,13 +2,29 @@ import datetime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QTabWidget,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QFrame,
-    QMessageBox, QFileDialog, QScrollArea, QProgressBar
+    QMessageBox, QFileDialog, QScrollArea, QProgressBar, QSizePolicy
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont, QColor
 
 from database import data_manager
 from utils.pdf_generator import PdfGenerator
+
+
+def adjust_table_height(table_widget):
+    """
+    Expands a QTableWidget vertically so all rows are visible without internal scrollbars.
+    """
+    table_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    table_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    table_widget.resizeRowsToContents()
+    
+    header_h = table_widget.horizontalHeader().height() or 32
+    rows_h = sum(table_widget.rowHeight(r) for r in range(table_widget.rowCount()))
+    frame_h = table_widget.frameWidth() * 2
+    
+    total_h = header_h + rows_h + frame_h + 12
+    table_widget.setFixedHeight(max(total_h, 60))
 
 
 class RapportsView(QWidget):
@@ -119,28 +135,33 @@ class RapportsView(QWidget):
 
     def setup_compta_tab(self):
         layout = QVBoxLayout(self.tab_compta)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(12)
+        layout.setContentsMargins(0, 0, 0, 0)
 
+        # Single Master Scroll Area for the whole page
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+        
         container = QWidget()
         c_layout = QVBoxLayout(container)
-        c_layout.setSpacing(15)
+        c_layout.setContentsMargins(10, 10, 10, 10)
+        c_layout.setSpacing(20)
 
         # --- SECTION I: RAPPORT DES REVENUS ---
         grp_rev = QFrame()
-        grp_rev.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; }")
+        grp_rev.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; }")
         ly_rev = QVBoxLayout(grp_rev)
+        ly_rev.setSpacing(10)
         
         lbl_rev = QLabel("I. RAPPORT DES REVENUS")
-        lbl_rev.setStyleSheet("font-size: 14px; font-weight: bold; color: #007572;")
+        lbl_rev.setStyleSheet("font-size: 15px; font-weight: bold; color: #007572;")
         ly_rev.addWidget(lbl_rev)
 
         self.tbl_revenus = QTableWidget()
         self.tbl_revenus.setColumnCount(3)
         self.tbl_revenus.setHorizontalHeaderLabels(["N°", "CATÉGORIE / DÉTAILS", "MONTANT HORS TAXE (DA)"])
         self.tbl_revenus.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_revenus.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tbl_revenus.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_revenus.setAlternatingRowColors(True)
         ly_rev.addWidget(self.tbl_revenus)
@@ -149,53 +170,66 @@ class RapportsView(QWidget):
 
         # --- SECTION II: RAPPORT DES DÉPENSES ---
         grp_dep = QFrame()
-        grp_dep.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; }")
+        grp_dep.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; }")
         ly_dep = QVBoxLayout(grp_dep)
+        ly_dep.setSpacing(10)
 
         lbl_dep = QLabel("II. RAPPORT DES DÉPENSES")
-        lbl_dep.setStyleSheet("font-size: 14px; font-weight: bold; color: #b91c1c;")
+        lbl_dep.setStyleSheet("font-size: 15px; font-weight: bold; color: #b91c1c;")
         ly_dep.addWidget(lbl_dep)
 
         self.tbl_depenses = QTableWidget()
         self.tbl_depenses.setColumnCount(4)
         self.tbl_depenses.setHorizontalHeaderLabels(["N°", "CATÉGORIE & DÉTAILS", "MONTANT PAYÉ (DA)", "MONTANT DETTE (DA)"])
         self.tbl_depenses.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_depenses.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tbl_depenses.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_depenses.setAlternatingRowColors(True)
         ly_dep.addWidget(self.tbl_depenses)
 
         c_layout.addWidget(grp_dep)
 
-        # --- SECTION III: RÉSULTAT FINAL ---
+        # --- SECTION III: RÉSULTAT FINAL & PROFITABILITÉ ---
         grp_res = QFrame()
-        grp_res.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; }")
+        grp_res.setStyleSheet("QFrame { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; }")
         ly_res = QVBoxLayout(grp_res)
+        ly_res.setSpacing(10)
 
         lbl_res = QLabel("III. RÉSULTAT FINAL & PROFITABILITÉ")
-        lbl_res.setStyleSheet("font-size: 14px; font-weight: bold; color: #1e293b;")
+        lbl_res.setStyleSheet("font-size: 15px; font-weight: bold; color: #1e293b;")
         ly_res.addWidget(lbl_res)
 
         self.tbl_resultat = QTableWidget()
         self.tbl_resultat.setColumnCount(4)
         self.tbl_resultat.setHorizontalHeaderLabels(["N°", "DÉSIGNATION", "CRÉDIT (DA)", "DÉBIT (DA)"])
         self.tbl_resultat.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_resultat.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tbl_resultat.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_resultat.setAlternatingRowColors(True)
         ly_res.addWidget(self.tbl_resultat)
 
         c_layout.addWidget(grp_res)
 
+        c_layout.addStretch()
         scroll.setWidget(container)
         layout.addWidget(scroll)
 
     def setup_analytic_tab(self):
         layout = QVBoxLayout(self.tab_analytic)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(12)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+
+        container = QWidget()
+        c_layout = QVBoxLayout(container)
+        c_layout.setContentsMargins(10, 10, 10, 10)
+        c_layout.setSpacing(15)
 
         # KPI Summary header
         self.cards_frame = QFrame()
-        self.cards_frame.setStyleSheet("QFrame { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; }")
+        self.cards_frame.setStyleSheet("QFrame { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; }")
         c_ly = QHBoxLayout(self.cards_frame)
         
         self.lbl_tot_dep = QLabel("Charges Globales: 0.00 DA")
@@ -203,7 +237,7 @@ class RapportsView(QWidget):
         c_ly.addWidget(self.lbl_tot_dep)
         c_ly.addStretch()
 
-        layout.addWidget(self.cards_frame)
+        c_layout.addWidget(self.cards_frame)
 
         self.tbl_analytic = QTableWidget()
         self.tbl_analytic.setColumnCount(4)
@@ -213,7 +247,11 @@ class RapportsView(QWidget):
         self.tbl_analytic.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_analytic.setAlternatingRowColors(True)
 
-        layout.addWidget(self.tbl_analytic)
+        c_layout.addWidget(self.tbl_analytic)
+        c_layout.addStretch()
+
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
 
     def on_filter_changed(self):
         month = self.cb_month.currentIndex() + 1
@@ -236,23 +274,35 @@ class RapportsView(QWidget):
 
         r_idx = 0
         # Ville
-        self.tbl_revenus.setItem(r_idx, 0, QTableWidgetItem("01"))
+        item01 = QTableWidgetItem("01")
+        item01.setTextAlignment(Qt.AlignCenter)
+        self.tbl_revenus.setItem(r_idx, 0, item01)
         self.tbl_revenus.setItem(r_idx, 1, QTableWidgetItem("Les Revenus de Clientèle Ville"))
-        self.tbl_revenus.setItem(r_idx, 2, QTableWidgetItem(f"{rev['ville']:,.2f}"))
+        item_v = QTableWidgetItem(f"{rev['ville']:,.2f}")
+        item_v.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tbl_revenus.setItem(r_idx, 2, item_v)
         r_idx += 1
 
         # Sous-traitance
         for st in st_items:
-            self.tbl_revenus.setItem(r_idx, 0, QTableWidgetItem("02"))
+            item_st = QTableWidgetItem("02")
+            item_st.setTextAlignment(Qt.AlignCenter)
+            self.tbl_revenus.setItem(r_idx, 0, item_st)
             self.tbl_revenus.setItem(r_idx, 1, QTableWidgetItem(f"Sous-Traitance: {st['nom_partenaire']}"))
-            self.tbl_revenus.setItem(r_idx, 2, QTableWidgetItem(f"{float(st['total'] or 0):,.2f}"))
+            item_val = QTableWidgetItem(f"{float(st['total'] or 0):,.2f}")
+            item_val.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.tbl_revenus.setItem(r_idx, 2, item_val)
             r_idx += 1
 
         # Supp
         for sp in supp_items:
-            self.tbl_revenus.setItem(r_idx, 0, QTableWidgetItem("03"))
+            item_sp = QTableWidgetItem("03")
+            item_sp.setTextAlignment(Qt.AlignCenter)
+            self.tbl_revenus.setItem(r_idx, 0, item_sp)
             self.tbl_revenus.setItem(r_idx, 1, QTableWidgetItem(f"Revenus Supplémentaires: {sp['designation']}"))
-            self.tbl_revenus.setItem(r_idx, 2, QTableWidgetItem(f"{float(sp['total'] or 0):,.2f}"))
+            item_val = QTableWidgetItem(f"{float(sp['total'] or 0):,.2f}")
+            item_val.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.tbl_revenus.setItem(r_idx, 2, item_val)
             r_idx += 1
 
         # Total CA
@@ -261,10 +311,15 @@ class RapportsView(QWidget):
         item_val = QTableWidgetItem(f"{rev['chiffre_affaires']:,.2f}")
         item_val.setFont(QFont("Arial", -1, QFont.Bold))
         item_val.setForeground(QColor("#007572"))
+        item_val.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        self.tbl_revenus.setItem(r_idx, 0, QTableWidgetItem("04"))
+        item04 = QTableWidgetItem("04")
+        item04.setTextAlignment(Qt.AlignCenter)
+        self.tbl_revenus.setItem(r_idx, 0, item04)
         self.tbl_revenus.setItem(r_idx, 1, item_lbl)
         self.tbl_revenus.setItem(r_idx, 2, item_val)
+
+        adjust_table_height(self.tbl_revenus)
 
         # 2. Dépenses Table
         dep = data['depenses']
@@ -275,9 +330,14 @@ class RapportsView(QWidget):
         for cat_name, cat_info in cats.items():
             item_c = QTableWidgetItem(cat_name)
             item_paye = QTableWidgetItem(f"{cat_info['paye']:,.2f}")
+            item_paye.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             item_dette = QTableWidgetItem(f"{cat_info['dette']:,.2f}")
+            item_dette.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-            self.tbl_depenses.setItem(d_idx, 0, QTableWidgetItem(f"{d_idx+1:02d}"))
+            item_num = QTableWidgetItem(f"{d_idx+1:02d}")
+            item_num.setTextAlignment(Qt.AlignCenter)
+
+            self.tbl_depenses.setItem(d_idx, 0, item_num)
             self.tbl_depenses.setItem(d_idx, 1, item_c)
             self.tbl_depenses.setItem(d_idx, 2, item_paye)
             self.tbl_depenses.setItem(d_idx, 3, item_dette)
@@ -288,32 +348,42 @@ class RapportsView(QWidget):
         item_t_lbl.setFont(QFont("Arial", -1, QFont.Bold))
         item_t_paye = QTableWidgetItem(f"{dep['total_paye']:,.2f}")
         item_t_paye.setFont(QFont("Arial", -1, QFont.Bold))
+        item_t_paye.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         item_t_dette = QTableWidgetItem(f"{dep['total_dette']:,.2f}")
         item_t_dette.setFont(QFont("Arial", -1, QFont.Bold))
+        item_t_dette.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
         self.tbl_depenses.setItem(d_idx, 1, item_t_lbl)
         self.tbl_depenses.setItem(d_idx, 2, item_t_paye)
         self.tbl_depenses.setItem(d_idx, 3, item_t_dette)
         d_idx += 1
 
-        item_g_lbl = QTableWidgetItem("TOTAL DÉPENSES GLOBAL")
+        item_g_lbl = QTableWidgetItem("TOTAL DÉPENSES GLOBAL (Payé + Dette)")
         item_g_lbl.setFont(QFont("Arial", -1, QFont.Bold))
         item_g_val = QTableWidgetItem(f"{dep['total_global']:,.2f}")
         item_g_val.setFont(QFont("Arial", -1, QFont.Bold))
         item_g_val.setForeground(QColor("#b91c1c"))
+        item_g_val.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
         self.tbl_depenses.setItem(d_idx, 1, item_g_lbl)
         self.tbl_depenses.setItem(d_idx, 2, item_g_val)
+
+        adjust_table_height(self.tbl_depenses)
 
         # 3. Résultat Final Table
         res = data['resultat']
         self.tbl_resultat.setRowCount(7)
 
         def set_res_row(row, num, title, credit=None, debit=None, bold=False, color=None):
-            self.tbl_resultat.setItem(row, 0, QTableWidgetItem(num))
+            item_n = QTableWidgetItem(num)
+            item_n.setTextAlignment(Qt.AlignCenter)
+            self.tbl_resultat.setItem(row, 0, item_n)
+            
             it_t = QTableWidgetItem(title)
             it_c = QTableWidgetItem(f"{credit:,.2f}" if credit is not None else "-")
+            it_c.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             it_d = QTableWidgetItem(f"{debit:,.2f}" if debit is not None else "-")
+            it_d.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             
             if bold:
                 f = it_t.font()
@@ -340,6 +410,8 @@ class RapportsView(QWidget):
         set_res_row(5, "06", "Les Investissements", debit=res['investissements'])
         set_res_row(6, "07", "Profitabilité Nette après Investissements", credit=res['profitabilite_apres_invest'] if res['profitabilite_apres_invest'] >= 0 else None, debit=abs(res['profitabilite_apres_invest']) if res['profitabilite_apres_invest'] < 0 else None, bold=True, color=prof_c)
 
+        adjust_table_height(self.tbl_resultat)
+
     def _render_analytic_tab(self, data):
         dep = data['depenses']
         cats = dep['categories']
@@ -354,8 +426,10 @@ class RapportsView(QWidget):
 
             item_name = QTableWidgetItem(cat_name)
             item_montant = QTableWidgetItem(f"{montant:,.2f} DA")
+            item_montant.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             item_montant.setFont(QFont("Arial", -1, QFont.Bold))
             item_pct = QTableWidgetItem(f"{pct:.2f} %")
+            item_pct.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             item_pct.setFont(QFont("Arial", -1, QFont.Bold))
 
             # Progress bar for visual percentage
@@ -369,6 +443,8 @@ class RapportsView(QWidget):
             self.tbl_analytic.setItem(row_idx, 1, item_montant)
             self.tbl_analytic.setItem(row_idx, 2, item_pct)
             self.tbl_analytic.setCellWidget(row_idx, 3, pbar)
+
+        adjust_table_height(self.tbl_analytic)
 
     def export_compta_pdf(self):
         if not hasattr(self, 'current_report'):
@@ -386,11 +462,6 @@ class RapportsView(QWidget):
             return
 
         pdf_gen = PdfGenerator()
-        if hasattr(pdf_gen, 'generate_rapport_comptabilite_pdf'):
-            pdf_gen.generate_rapport_comptabilite_pdf(file_path, m_name, y, self.current_report)
-        else:
-            # Fallback table pdf
-            table_html = f"<h2>Rapport de Comptabilité - {m_name} {y}</h2>"
-            pdf_gen.generate_pdf(file_path, f" - Rapport de Comptabilité ({m_name} {y})", table_html)
+        pdf_gen.generate_rapport_comptabilite_pdf(file_path, m_name, y, self.current_report)
 
         QMessageBox.information(self, "Exportation Réussie", f"Le Rapport de Comptabilité a été généré avec succès :\n{file_path}")

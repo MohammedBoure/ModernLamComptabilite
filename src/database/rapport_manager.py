@@ -58,7 +58,7 @@ class RapportManager:
         q_fourn = """
             SELECT f.nom_fournisseur, 
                    IFNULL(SUM(d.montant_total), 0.0) as total_cmd,
-                   IFNULL((SELECT SUM(p.montant_paye) 
+                   IFNULL((SELECT SUM(p.montant_verse) 
                            FROM Paiements_Fournisseurs p 
                            JOIN Depenses_Achats d2 ON p.id_depense = d2.id_depense 
                            WHERE d2.id_fournisseur = f.id_fournisseur 
@@ -93,37 +93,150 @@ class RapportManager:
             "total": total_salaires
         }
 
-        # Catégorie 03: Dépenses Internes (Caisse)
+        # Catégorie 03: Sous-traitance (Partenaires sortants)
+        q_st_out = """
+            SELECT p.nom_partenaire, SUM(o.montant_total) as total
+            FROM Operations_Partenaires o
+            JOIN Partenaires p ON o.id_partenaire = p.id_partenaire
+            WHERE p.type_partenaire = 'CONVENTION'
+              AND MONTH(o.date_operation) = %s AND YEAR(o.date_operation) = %s
+            GROUP BY p.id_partenaire, p.nom_partenaire
+        """
+        st_out_rows = self.db.fetch_all(q_st_out, (month, year))
+        cat03_total = sum(float(r['total'] or 0.0) for r in st_out_rows)
+        categories_depenses["03. Sous-traitance (Conventions)"] = {
+            "items": [{"label": r['nom_partenaire'], "paye": float(r['total'] or 0.0), "dette": 0.0} for r in st_out_rows],
+            "paye": cat03_total,
+            "dette": 0.0,
+            "total": cat03_total
+        }
+
+        # Catégorie 04: Dépenses Internes (Caisse)
         q_dep_int = "SELECT SUM(depenses) as total FROM Mouvement_Caisse WHERE MONTH(date_mouvement) = %s AND YEAR(date_mouvement) = %s"
         r_dep_int = self.db.fetch_one(q_dep_int, (month, year))
         total_dep_int = float(r_dep_int['total'] or 0.0) if r_dep_int else 0.0
-        categories_depenses["03. Dépenses Internes"] = {
+        categories_depenses["04. Dépenses Internes"] = {
             "items": [{"label": "Dépenses Internes Caisse", "paye": total_dep_int, "dette": 0.0}],
             "paye": total_dep_int,
             "dette": 0.0,
             "total": total_dep_int
         }
 
-        # Catégorie 04: Véhicule de Service
+        # Catégorie 05: Les Impôts (CNAS / CASNOS)
+        q_imp = """
+            SELECT designation, SUM(montant) as total 
+            FROM Mouvement_Coffre 
+            WHERE type_operation = 'SORTIE' 
+              AND (designation LIKE '%CNAS%' OR designation LIKE '%IMPOT%')
+              AND MONTH(date_transaction) = %s AND YEAR(date_transaction) = %s
+            GROUP BY designation
+        """
+        imp_rows = self.db.fetch_all(q_imp, (month, year))
+        cat05_total = sum(float(r['total'] or 0.0) for r in imp_rows)
+        categories_depenses["05. Les Impôts"] = {
+            "items": [{"label": r['designation'], "paye": float(r['total'] or 0.0), "dette": 0.0} for r in imp_rows],
+            "paye": cat05_total,
+            "dette": 0.0,
+            "total": cat05_total
+        }
+
+        # Catégorie 06: Informatique & Bureautique
+        q_inf = """
+            SELECT designation, SUM(montant) as total 
+            FROM Mouvement_Coffre 
+            WHERE type_operation = 'SORTIE' 
+              AND (designation LIKE '%INFORM%' OR designation LIKE '%BUREAU%' OR designation LIKE '%IMPRIM%')
+              AND MONTH(date_transaction) = %s AND YEAR(date_transaction) = %s
+            GROUP BY designation
+        """
+        inf_rows = self.db.fetch_all(q_inf, (month, year))
+        cat06_total = sum(float(r['total'] or 0.0) for r in inf_rows)
+        categories_depenses["06. Informatique & Bureautique"] = {
+            "items": [{"label": r['designation'], "paye": float(r['total'] or 0.0), "dette": 0.0} for r in inf_rows],
+            "paye": cat06_total,
+            "dette": 0.0,
+            "total": cat06_total
+        }
+
+        # Catégorie 07: Location
+        q_loc = """
+            SELECT designation, SUM(montant) as total 
+            FROM Mouvement_Coffre 
+            WHERE type_operation = 'SORTIE' 
+              AND designation LIKE '%LOCATION%'
+              AND MONTH(date_transaction) = %s AND YEAR(date_transaction) = %s
+            GROUP BY designation
+        """
+        loc_rows = self.db.fetch_all(q_loc, (month, year))
+        cat07_total = sum(float(r['total'] or 0.0) for r in loc_rows)
+        categories_depenses["07. Location"] = {
+            "items": [{"label": r['designation'], "paye": float(r['total'] or 0.0), "dette": 0.0} for r in loc_rows],
+            "paye": cat07_total,
+            "dette": 0.0,
+            "total": cat07_total
+        }
+
+        # Catégorie 08: Transport Sous-Traitants
+        q_tr = """
+            SELECT designation, SUM(montant) as total 
+            FROM Mouvement_Coffre 
+            WHERE type_operation = 'SORTIE' 
+              AND designation LIKE '%TRANSPORT%'
+              AND MONTH(date_transaction) = %s AND YEAR(date_transaction) = %s
+            GROUP BY designation
+        """
+        tr_rows = self.db.fetch_all(q_tr, (month, year))
+        cat08_total = sum(float(r['total'] or 0.0) for r in tr_rows)
+        categories_depenses["08. Transport Sous-Traitants"] = {
+            "items": [{"label": r['designation'], "paye": float(r['total'] or 0.0), "dette": 0.0} for r in tr_rows],
+            "paye": cat08_total,
+            "dette": 0.0,
+            "total": cat08_total
+        }
+
+        # Catégorie 09: Véhicule de Service
         q_veh = "SELECT SUM(montant_carburant) as total FROM Vehicule_Service WHERE MONTH(date_suivi) = %s AND YEAR(date_suivi) = %s"
         r_veh = self.db.fetch_one(q_veh, (month, year))
         total_veh = float(r_veh['total'] or 0.0) if r_veh else 0.0
-        categories_depenses["04. Véhicule de Service"] = {
+        categories_depenses["09. Véhicule de Service"] = {
             "items": [{"label": "Carburant & Entretien Véhicules", "paye": total_veh, "dette": 0.0}],
             "paye": total_veh,
             "dette": 0.0,
             "total": total_veh
         }
 
-        # Catégorie 05: Autre Dépenses (Impôts, Location, Informatique, etc.)
+        # Catégorie 10: Autre Dépenses
+        q_aut = """
+            SELECT designation, SUM(montant) as total 
+            FROM Mouvement_Coffre 
+            WHERE type_operation = 'SORTIE' 
+              AND categorie_operation = 'AUTRE_SORTIE'
+              AND designation NOT LIKE '%CNAS%' 
+              AND designation NOT LIKE '%IMPOT%'
+              AND designation NOT LIKE '%INFORM%' 
+              AND designation NOT LIKE '%BUREAU%'
+              AND designation NOT LIKE '%LOCATION%'
+              AND designation NOT LIKE '%TRANSPORT%'
+              AND MONTH(date_transaction) = %s AND YEAR(date_transaction) = %s
+            GROUP BY designation
+        """
+        aut_rows = self.db.fetch_all(q_aut, (month, year))
+        cat10_total = sum(float(r['total'] or 0.0) for r in aut_rows)
+        categories_depenses["10. Autre Dépenses"] = {
+            "items": [{"label": r['designation'], "paye": float(r['total'] or 0.0), "dette": 0.0} for r in aut_rows],
+            "paye": cat10_total,
+            "dette": 0.0,
+            "total": cat10_total
+        }
+
         total_charges_paye = sum(c['paye'] for c in categories_depenses.values())
         total_charges_dette = sum(c['dette'] for c in categories_depenses.values())
-        total_dépenses_globales = total_charges_paye + total_charges_dette
+        total_depenses_globales = total_charges_paye + total_charges_dette
 
         # --------------------------------------------------------
         # 3. RÉSULTAT FINAL & PROFITABILITÉ
         # --------------------------------------------------------
-        profitabilite_nette = chiffre_affaires_mensuel - total_dépenses_globales
+        profitabilite_nette = chiffre_affaires_mensuel - total_depenses_globales
 
         return {
             'month': month,
@@ -140,11 +253,11 @@ class RapportManager:
                 'categories': categories_depenses,
                 'total_paye': total_charges_paye,
                 'total_dette': total_charges_dette,
-                'total_global': total_dépenses_globales
+                'total_global': total_depenses_globales
             },
             'resultat': {
                 'revenus_totaux': chiffre_affaires_mensuel,
-                'charges_totales': total_dépenses_globales,
+                'charges_totales': total_depenses_globales,
                 'profitabilite_nette': profitabilite_nette,
                 'investissements': 0.0,
                 'profitabilite_apres_invest': profitabilite_nette,
