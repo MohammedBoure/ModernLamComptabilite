@@ -323,8 +323,9 @@ class RapportsView(QWidget):
 
         self.tbl_depenses.setItem(d_idx, 1, item_t_lbl)
         self.tbl_depenses.setItem(d_idx, 2, item_t_paye)
-        self.tbl_depenses.setItem(d_idx, 3, item_dette)
+        self.tbl_depenses.setItem(d_idx, 3, item_t_dette)
         d_idx += 1
+
 
         item_g_lbl = QTableWidgetItem("TOTAL DÉPENSES GLOBAL (Payé + Dette)")
         item_g_lbl.setFont(QFont("Arial", -1, QFont.Bold))

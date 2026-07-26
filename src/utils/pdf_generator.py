@@ -1,6 +1,6 @@
 import os
 import json
-from PySide6.QtGui import QPainter, QPageSize, QPageLayout, QColor, QFont, QPixmap, QTextDocument, QAbstractTextDocumentLayout
+from PySide6.QtGui import QPainter, QPageSize, QPageLayout, QColor, QFont, QPixmap, QTextDocument, QAbstractTextDocumentLayout, QPen
 from PySide6.QtCore import Qt, QRectF, QMarginsF, QSizeF
 from PySide6.QtPrintSupport import QPrinter
 
@@ -13,15 +13,15 @@ class PdfGenerator:
         defaults = {
             "theme_color": "#007572",
             "doc_title": "MODERNLAM",
-            "banner_height_cm": 4.8, 
+            "banner_height_cm": 4.5, 
             "banner_path": "",
             "banner_img_x_cm": 0.0,
             "banner_img_y_cm": 0.0,
             "banner_img_w_cm": 21.0,
-            "banner_img_h_cm": 4.8,
+            "banner_img_h_cm": 4.5,
             "table_start_y_cm": 8.0,
-            "footer_left_label": "Signature de l'Agent",
-            "footer_right_label": "Visa Direction",
+            "footer_left_label": "Signature & Cachet de l'Agent",
+            "footer_right_label": "Visa & Cachet de la Direction",
             "nif": "",
             "rip": ""
         }
@@ -36,7 +36,7 @@ class PdfGenerator:
 
     def generate_pdf(self, output_path, title_suffix, table_html):
         """
-        Generate a multi-page PDF with custom header and footer on EVERY page.
+        Generate a multi-page PDF with custom header and spacious signature stamp footer on EVERY page.
         """
         printer = QPrinter(QPrinter.HighResolution)
         printer.setOutputFormat(QPrinter.PdfFormat)
@@ -59,7 +59,7 @@ class PdfGenerator:
 
         header_height_cm = s.get('banner_height_cm', 4.5)
         top_margin_dots = (header_height_cm + 0.8) * dpcm
-        bottom_margin_dots = 2.0 * dpcm
+        bottom_margin_dots = 4.2 * dpcm  # Reserved ample vertical space for stamps & signatures
         left_margin_dots = 1.0 * dpcm
         right_margin_dots = 1.0 * dpcm
 
@@ -170,18 +170,37 @@ class PdfGenerator:
                 painter.drawText(QRectF(left_margin_dots, title_y + 0.6 * dpcm, content_w_dots, 0.4 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, meta_text)
 
             # --------------------------------------------------
-            # 2. DRAW FOOTER ON EVERY PAGE
+            # 2. DRAW SPACIOUS STAMP & SIGNATURE BOXES ON EVERY PAGE
             # --------------------------------------------------
-            footer_y = page_h_dots - 1.5 * dpcm
-            painter.setPen(QColor("#334155"))
-            painter.setFont(QFont("Arial", 9, QFont.Bold))
-            painter.drawText(QRectF(left_margin_dots, footer_y, 8.0 * dpcm, 0.8 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, s.get('footer_left_label', 'Signature de l\'Agent'))
-            painter.drawText(QRectF(left_margin_dots + content_w_dots - 8.0 * dpcm, footer_y, 8.0 * dpcm, 0.8 * dpcm), Qt.AlignRight | Qt.AlignVCenter, s.get('footer_right_label', 'Visa Direction'))
-            
-            # Page numbering: Page X / Y
+            footer_y = page_h_dots - 3.8 * dpcm
+            box_w = 8.5 * dpcm
+            box_h = 2.6 * dpcm  # Generous physical height for stamp & signature
+
+            # Left Signature & Stamp Box
+            left_x = left_margin_dots
+            painter.setPen(QPen(QColor("#cbd5e1"), 1, Qt.DashLine))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(QRectF(left_x, footer_y, box_w, box_h), 4, 4)
+
+            painter.setPen(theme_color)
+            painter.setFont(QFont("Arial", 9.5, QFont.Bold))
+            painter.drawText(QRectF(left_x + 0.3 * dpcm, footer_y + 0.2 * dpcm, box_w - 0.6 * dpcm, 0.5 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, s.get('footer_left_label', 'Signature & Cachet de l\'Agent'))
+
+            # Right Signature & Stamp Box
+            right_x = left_margin_dots + content_w_dots - box_w
+            painter.setPen(QPen(QColor("#cbd5e1"), 1, Qt.DashLine))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(QRectF(right_x, footer_y, box_w, box_h), 4, 4)
+
+            painter.setPen(theme_color)
+            painter.setFont(QFont("Arial", 9.5, QFont.Bold))
+            painter.drawText(QRectF(right_x + 0.3 * dpcm, footer_y + 0.2 * dpcm, box_w - 0.6 * dpcm, 0.5 * dpcm), Qt.AlignRight | Qt.AlignVCenter, s.get('footer_right_label', 'Visa & Cachet de la Direction'))
+
+            # Page numbering Line below signature boxes
+            page_num_y = footer_y + box_h + 0.15 * dpcm
             painter.setPen(QColor("#64748b"))
-            painter.setFont(QFont("Arial", 8, QFont.Normal))
-            painter.drawText(QRectF(left_margin_dots, footer_y + 0.6 * dpcm, content_w_dots, 0.4 * dpcm), Qt.AlignCenter, f"Page {page_idx + 1} / {page_count}")
+            painter.setFont(QFont("Arial", 8.5, QFont.Normal))
+            painter.drawText(QRectF(left_margin_dots, page_num_y, content_w_dots, 0.4 * dpcm), Qt.AlignCenter, f"Page {page_idx + 1} / {page_count}")
 
             # --------------------------------------------------
             # 3. DRAW PAGE CONTENT FOR THIS PAGE
