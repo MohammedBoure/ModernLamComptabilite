@@ -291,3 +291,83 @@ class PdfGenerator:
         title_suffix = f" - Station d'Incinération Benniou ({month_name} {year})"
         return self.generate_pdf(output_path, title_suffix, html)
 
+    def generate_profitabilite_pdf(self, output_path, month_name, year, summary):
+        """
+        Generate PDF for Mouvement Profitabilité summary.
+        summary: dict returned by get_profitability_summary
+        """
+        prof_val = summary.get('profitability', 0.0)
+        prof_pct = summary.get('profitability_pct', 0.0)
+        prof_color = "#2e7d32" if prof_val >= 0 else "#c62828"
+
+        html = f"""
+        <div style="font-family: Arial, sans-serif; font-size: 11pt;">
+            <div style="background-color: #f8fafc; padding: 12px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #007572; font-size: 14pt;">Mouvement Profitabilité - {month_name} {year}</h3>
+                <p style="margin: 5px 0 0 0; font-size: 11pt; color: #475569;">
+                    Bilan financier mensuel comparatif (Revenus vs Taux de Charges)
+                </p>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr style="background-color: #007572; color: white;">
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">Indicateur Financier</th>
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; width: 220px;">Valeur (DA)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1;">PAIE ESTIMATION (Salaires)</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{summary.get('total_paie', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1;">DEPENSES INTERNE (Caisse)</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{summary.get('total_dep_int', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1;">MOUVEMENTS FOURNISSEURS</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{summary.get('total_cmd', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr style="background-color: #ffebee; font-weight: bold; color: #c62828;">
+                        <td style="padding: 8px; border: 1px solid #cbd5e1;">TOTAL CHARGES (Fournisseurs + Dépenses + Paie)</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">{summary.get('total_costs', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr><td colspan="2" style="padding: 4px; border: none;"></td></tr>
+                    <tr>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1;">CA LAM (Caisse Ville & TPE)</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{summary.get('ca_lam', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1;">CA C (Convention / Mutuelle)</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{summary.get('ca_c', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1;">CA ST (Sous-Traitants)</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{summary.get('ca_st', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1;">ENTREES SUPP (Coffre)</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{summary.get('entrees_supp', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr style="background-color: #e3f2fd; font-weight: bold; color: #1565c0;">
+                        <td style="padding: 8px; border: 1px solid #cbd5e1;">CHIFFRE D'AFFAIRES TOTAL</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">{summary.get('chiffre_affaire', 0.0):,.2f} DA</td>
+                    </tr>
+                    <tr><td colspan="2" style="padding: 4px; border: none;"></td></tr>
+                    <tr style="background-color: #f1f5f9; font-weight: bold;">
+                        <td style="padding: 9px; border: 1px solid #cbd5e1; font-size: 12pt;">PROFITABILITÉ NETTE</td>
+                        <td style="padding: 9px; border: 1px solid #cbd5e1; text-align: right; color: {prof_color}; font-size: 12pt;">{prof_val:,.2f} DA</td>
+                    </tr>
+                    <tr style="background-color: #f1f5f9; font-weight: bold;">
+                        <td style="padding: 9px; border: 1px solid #cbd5e1; font-size: 12pt;">% PROFITABILITÉ / CHIFFRE D'AFFAIRE</td>
+                        <td style="padding: 9px; border: 1px solid #cbd5e1; text-align: right; color: {prof_color}; font-size: 12pt;">{prof_pct:.2f} %</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        """
+        title_suffix = f" - Mouvement Profitabilité ({month_name} {year})"
+        return self.generate_pdf(output_path, title_suffix, html)
+
+

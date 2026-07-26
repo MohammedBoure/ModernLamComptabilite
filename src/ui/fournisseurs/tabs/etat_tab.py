@@ -12,6 +12,7 @@ from ui.table_helper import (
     PATH_EDIT, PATH_DELETE, PATH_SUPPLIER, PATH_WRENCH, PATH_BOX, PATH_LIST, PATH_SEARCH
 )
 from ui.fournisseurs.dialogs import FournisseurDialog
+from .profitabilite_tab import ProfitabiliteTab
 
 
 _sentinel = object()
@@ -398,11 +399,13 @@ class EtatFournisseursTab(QWidget):
         lay_details.addWidget(self.stack_ledgers, stretch=1)
         
         # 3. Create central Stacked Widget
+        self.tab_prof = ProfitabiliteTab(self)
         self.stack_pages = QStackedWidget()
         self.stack_pages.addWidget(self.tab_general)
         self.stack_pages.addWidget(self.tab_equip)
         self.stack_pages.addWidget(self.tab_cons)
         self.stack_pages.addWidget(self.tab_details)
+        self.stack_pages.addWidget(self.tab_prof)
         
         # 4. Top Navigation Bar (Pill buttons + Search)
         nav_widget = QWidget()
@@ -438,6 +441,9 @@ class EtatFournisseursTab(QWidget):
         
         self.btn_page_details = QPushButton(" Fiches Individuelles")
         self.btn_page_details.setIcon(get_dynamic_pill_icon(PATH_SUPPLIER, 14))
+
+        self.btn_page_prof = QPushButton(" 📈 Profitabilité")
+        self.btn_page_prof.setIcon(get_dynamic_pill_icon(PATH_LIST, 14))
         
         btn_style = """
             QPushButton {
@@ -462,7 +468,7 @@ class EtatFournisseursTab(QWidget):
             }
         """
         
-        for i, btn in enumerate([self.btn_page_gen, self.btn_page_equip, self.btn_page_cons, self.btn_page_details]):
+        for i, btn in enumerate([self.btn_page_gen, self.btn_page_equip, self.btn_page_cons, self.btn_page_details, self.btn_page_prof]):
             btn.setCheckable(True)
             btn.setStyleSheet(btn_style)
             btn.setCursor(Qt.PointingHandCursor)
