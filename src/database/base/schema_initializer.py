@@ -221,6 +221,17 @@ SCHEMA_QUERIES = [
         observations TEXT
     ) ENGINE=InnoDB;""",
 
+    """CREATE TABLE IF NOT EXISTS Station_Incineration (
+        id_incineration INT AUTO_INCREMENT PRIMARY KEY,
+        date_suivi DATE NOT NULL,
+        date_remise DATE NULL,
+        poids_kg DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        prix_unitaire_kg DECIMAL(10,2) NOT NULL DEFAULT 110.00,
+        montant_total DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+        etat_paiement ENUM('PAYE', 'NON_PAYE') NOT NULL DEFAULT 'NON_PAYE',
+        observations TEXT
+    ) ENGINE=InnoDB;""",
+
     # --- 6. Views ---
     """CREATE OR REPLACE VIEW Vue_Chiffre_Affaire_Mensuel AS
     SELECT 
@@ -296,7 +307,20 @@ SCHEMA_QUERIES = [
            ROUND(SUM(montant_carburant) / (MAX(kilometrage) - MIN(kilometrage)), 2), 
            0) AS cout_par_km
     FROM Vehicule_Service
-    GROUP BY YEAR(date_suivi), MONTH(date_suivi), type_carburant;"""
+    GROUP BY YEAR(date_suivi), MONTH(date_suivi), type_carburant;""",
+
+    """CREATE OR REPLACE VIEW Vue_Statistiques_Incineration AS
+    SELECT 
+        YEAR(date_suivi) AS annee,
+        MONTH(date_suivi) AS mois,
+        SUM(poids_kg) AS total_poids_kg,
+        SUM(montant_total) AS total_montant,
+        SUM(CASE WHEN etat_paiement = 'NON_PAYE' THEN montant_total ELSE 0 END) AS total_non_paye,
+        MAX(poids_kg) AS max_poids_kg,
+        MIN(poids_kg) AS min_poids_kg,
+        AVG(poids_kg) AS moyenne_poids_kg
+    FROM Station_Incineration
+    GROUP BY YEAR(date_suivi), MONTH(date_suivi);"""
 ]
 
 INDEX_QUERIES = [

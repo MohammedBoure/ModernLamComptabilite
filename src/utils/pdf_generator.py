@@ -153,3 +153,141 @@ class PdfGenerator:
         
         painter.end()
         return True
+
+    def generate_analytique_achats_pdf(self, output_path, month_name, year, data):
+        """
+        Generate PDF matching '02) Rapport Analytic des Achats' Word file.
+        data: dict with 'total_achats' and 'categories' list of dicts {'categorie', 'montant', 'pourcentage'}.
+        """
+        total_achats = data.get('total_achats', 0.0)
+        categories = data.get('categories', [])
+
+        html = f"""
+        <div style="font-family: Arial, sans-serif; font-size: 11pt;">
+            <div style="background-color: #f8fafc; padding: 12px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #007572; font-size: 14pt;">Analytiques des Achats du Mois de {month_name} {year}</h3>
+                <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 12pt; color: #1e293b;">
+                    Les Achats globaux du Mois de {month_name} {year} : <span style="color: #007572;">{total_achats:,.2f} DA</span>
+                </p>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr style="background-color: #007572; color: white;">
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">Catégorie d'Achat / Dépense</th>
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; width: 180px;">Montant (DA)</th>
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; width: 140px;">Part (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        for c in categories:
+            cat_name = c.get('categorie', '')
+            montant = c.get('montant', 0.0)
+            pct = c.get('pourcentage', 0.0)
+            html += f"""
+                    <tr>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; font-weight: 500;">{cat_name}</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{montant:,.2f} DA</td>
+                        <td style="padding: 7px 8px; border: 1px solid #cbd5e1; text-align: right; color: #007572; font-weight: bold;">{pct:.2f} %</td>
+                    </tr>
+            """
+            
+        html += f"""
+                    <tr style="background-color: #f1f5f9; font-weight: bold;">
+                        <td style="padding: 8px; border: 1px solid #cbd5e1;">TOTAL ACHATS GLOBAUX</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; color: #007572;">{total_achats:,.2f} DA</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; color: #007572;">100.00 %</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        """
+        title_suffix = f" - Rapport Analytique des Achats ({month_name} {year})"
+        return self.generate_pdf(output_path, title_suffix, html)
+
+    def generate_incineration_pdf(self, output_path, month_name, year, rows, stats):
+        """
+        Generate PDF matching 'Etat SNC Station d'Incinération Benniou MODERNLAM' Excel file.
+        rows: list of dicts from Station_Incineration
+        stats: dict from get_incineration_stats
+        """
+        html = f"""
+        <div style="font-family: Arial, sans-serif;">
+            <h3 style="margin-top: 0; color: #007572; font-size: 13pt; text-align: center;">
+                ETAT SNC STATION D'INCINÉRATION BENNIOU ({month_name.upper()} {year})
+            </h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;">
+                <thead>
+                    <tr style="background-color: #007572; color: white;">
+                        <th style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; width: 40px;">N°</th>
+                        <th style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">Date</th>
+                        <th style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">Date de Remise</th>
+                        <th style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">Poids (KG)</th>
+                        <th style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">Montant (DA)</th>
+                        <th style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">Paiement</th>
+                        <th style="padding: 6px; border: 1px solid #cbd5e1; text-align: left;">Observations</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        for i, r in enumerate(rows, start=1):
+            date_s = str(r.get('date_suivi', ''))
+            date_r = str(r.get('date_remise', '')) if r.get('date_remise') else '-'
+            poids = float(r.get('poids_kg', 0))
+            montant = float(r.get('montant_total', 0))
+            etat = "Payé" if r.get('etat_paiement') == 'PAYE' else "Non payé"
+            obs = r.get('observations', '') or '-'
+            bg_color = "#ffffff" if i % 2 != 0 else "#f8fafc"
+            
+            html += f"""
+                    <tr style="background-color: {bg_color};">
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">{i}</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">{date_s}</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center;">{date_r}</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{poids:.2f}</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">{montant:,.2f}</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center; color: {'green' if etat == 'Payé' else '#dc2626'}; font-weight: bold;">{etat}</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1;">{obs}</td>
+                    </tr>
+            """
+            
+        tot_poids = stats.get('total_poids_kg', 0.0)
+        tot_mnt = stats.get('total_montant', 0.0)
+        tot_np = stats.get('total_non_paye', 0.0)
+        max_p = stats.get('max_poids_kg', 0.0)
+        min_p = stats.get('min_poids_kg', 0.0)
+        avg_p = stats.get('moyenne_poids_kg', 0.0)
+
+        html += f"""
+                    <tr style="background-color: #e2e8f0; font-weight: bold;">
+                        <td colspan="3" style="padding: 6px; border: 1px solid #cbd5e1;">TOTAL</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; color: #007572;">{tot_poids:.2f} KG</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; color: #007572;">{tot_mnt:,.2f} DA</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #dc2626;">Non payé: {tot_np:,.2f} DA</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1;">-</td>
+                    </tr>
+                    <tr style="background-color: #f1f5f9;">
+                        <td colspan="3" style="padding: 5px; border: 1px solid #cbd5e1; font-weight: bold;">MAX</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">{max_p:.2f} KG</td>
+                        <td colspan="3" style="padding: 5px; border: 1px solid #cbd5e1;">-</td>
+                    </tr>
+                    <tr style="background-color: #f1f5f9;">
+                        <td colspan="3" style="padding: 5px; border: 1px solid #cbd5e1; font-weight: bold;">MIN</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">{min_p:.2f} KG</td>
+                        <td colspan="3" style="padding: 5px; border: 1px solid #cbd5e1;">-</td>
+                    </tr>
+                    <tr style="background-color: #f1f5f9;">
+                        <td colspan="3" style="padding: 5px; border: 1px solid #cbd5e1; font-weight: bold;">MOYENNE</td>
+                        <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right;">{avg_p:.2f} KG</td>
+                        <td colspan="3" style="padding: 5px; border: 1px solid #cbd5e1;">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        """
+        title_suffix = f" - Station d'Incinération Benniou ({month_name} {year})"
+        return self.generate_pdf(output_path, title_suffix, html)
+

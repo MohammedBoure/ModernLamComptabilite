@@ -521,7 +521,7 @@ class EtatFournisseursTab(QWidget):
         # Search bar
         self.txt_search = QLineEdit()
         self.txt_search.setPlaceholderText("Rechercher...")
-        self.txt_search.setFixedWidth(200)
+        self.txt_search.setFixedWidth(160)
         self.txt_search.setStyleSheet("""
             QLineEdit {
                 padding: 5px 12px;
@@ -537,6 +537,25 @@ class EtatFournisseursTab(QWidget):
         """)
         self.txt_search.textChanged.connect(self.on_search_changed)
         nav_layout.addWidget(self.txt_search)
+
+        # Export Rapport Analytique Achats button
+        self.btn_export_analytique = QPushButton("📊 Rapport Analytique")
+        self.btn_export_analytique.setCursor(Qt.PointingHandCursor)
+        self.btn_export_analytique.setStyleSheet("""
+            QPushButton {
+                background-color: #f57c00;
+                color: white;
+                font-weight: bold;
+                padding: 6px 12px;
+                border-radius: 14px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #e65100;
+            }
+        """)
+        self.btn_export_analytique.clicked.connect(self.export_analytique_pdf)
+        nav_layout.addWidget(self.btn_export_analytique)
         
         layout.addWidget(nav_widget)
         layout.addWidget(self.stack_pages)
@@ -810,8 +829,36 @@ class EtatFournisseursTab(QWidget):
         item_tot_pay.setFont(font_tot)
         item_tot_reste = QTableWidgetItem(f"{total_reste_sum:,.2f}")
         item_tot_reste.setFont(font_tot)
-        
         total_table.setItem(0, 0, item_tot_lbl)
         total_table.setItem(0, 1, item_tot_cmd)
         total_table.setItem(0, 2, item_tot_pay)
         total_table.setItem(0, 3, item_tot_reste)
+
+    def export_analytique_pdf(self):
+        m_idx = self.cb_month.currentIndex()
+        m_name = self.cb_month.currentText()
+        y_str = self.cb_year.currentText()
+        if m_idx == 0 or y_str == "Tous":
+            m_idx = QDate.currentDate().month()
+            months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+            m_name = months[m_idx - 1]
+            y_str = str(QDate.currentDate().year())
+        
+        y = int(y_str)
+        data = data_manager.banque.get_analytique_achats(m_idx, y)
+        if not data.get('categories'):
+            QMessageBox.information(self, "Info", f"Aucune donnée d'achats/dépenses trouvée pour {m_name} {y}.")
+            return
+
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getSaveFileName(self, "Enregistrer Rapport Analytique Achats", f"Rapport_Analytique_Achats_{m_idx:02d}_{y}.pdf", "PDF (*.pdf)")
+        if not path:
+            return
+
+        from utils.pdf_generator import PdfGenerator
+        gen = PdfGenerator()
+        if gen.generate_analytique_achats_pdf(path, m_name, y, data):
+            QMessageBox.information(self, "Succès", "Rapport Analytique des Achats généré avec succès!")
+        else:
+            QMessageBox.critical(self, "Erreur", "Erreur lors de la génération du PDF.")
+

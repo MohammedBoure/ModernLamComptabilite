@@ -179,3 +179,102 @@ class EtatEncaissementDialog(BaseDialog):
             self.accept()
         else:
             QMessageBox.critical(self, "Erreur", "Erreur lors de l'enregistrement.")
+
+class StationIncinerationDialog(BaseDialog):
+    def __init__(self, parent=None, record=None):
+        super().__init__("Modifier Opération Incinération" if record else "Nouvelle Opération Incinération", parent)
+        self.record = record
+        
+        self.txt_date_suivi = QDateEdit()
+        self.txt_date_suivi.setDate(QDate.currentDate())
+        self.txt_date_suivi.setCalendarPopup(True)
+
+        self.txt_date_remise = QDateEdit()
+        self.txt_date_remise.setDate(QDate.currentDate())
+        self.txt_date_remise.setCalendarPopup(True)
+        
+        self.val_poids = QDoubleSpinBox()
+        self.val_poids.setMaximum(99999.0)
+        self.val_poids.setDecimals(2)
+        self.val_poids.setSuffix(" kg")
+
+        self.val_prix_unit = QDoubleSpinBox()
+        self.val_prix_unit.setMaximum(99999.0)
+        self.val_prix_unit.setDecimals(2)
+        self.val_prix_unit.setValue(110.00)
+        self.val_prix_unit.setSuffix(" DA/kg")
+
+        self.val_montant = QDoubleSpinBox()
+        self.val_montant.setMaximum(999999999.0)
+        self.val_montant.setDecimals(2)
+        self.val_montant.setSuffix(" DA")
+
+        self.val_poids.valueChanged.connect(self.calculate_montant)
+        self.val_prix_unit.valueChanged.connect(self.calculate_montant)
+        
+        self.cb_etat = QComboBox()
+        self.cb_etat.addItem("Non payé", "NON_PAYE")
+        self.cb_etat.addItem("Payé", "PAYE")
+
+        self.txt_obs = QTextEdit()
+        self.txt_obs.setMaximumHeight(80)
+        
+        self.form_layout.addRow("Date Suivi:", self.txt_date_suivi)
+        self.form_layout.addRow("Date de Remise:", self.txt_date_remise)
+        self.form_layout.addRow("Poids (KG):", self.val_poids)
+        self.form_layout.addRow("Prix Unitaire (DA/kg):", self.val_prix_unit)
+        self.form_layout.addRow("Montant Total:", self.val_montant)
+        self.form_layout.addRow("État Paiement:", self.cb_etat)
+        self.form_layout.addRow("Observations:", self.txt_obs)
+
+        if record:
+            self.txt_date_suivi.setDate(QDate.fromString(str(record.get('date_suivi')), "yyyy-MM-dd"))
+            if record.get('date_remise'):
+                self.txt_date_remise.setDate(QDate.fromString(str(record.get('date_remise')), "yyyy-MM-dd"))
+            self.val_poids.setValue(float(record.get('poids_kg', 0.0) or 0.0))
+            self.val_prix_unit.setValue(float(record.get('prix_unitaire_kg', 110.0) or 110.0))
+            self.val_montant.setValue(float(record.get('montant_total', 0.0) or 0.0))
+            
+            etat = record.get('etat_paiement', 'NON_PAYE')
+            idx = self.cb_etat.findData(etat)
+            if idx >= 0:
+                self.cb_etat.setCurrentIndex(idx)
+            self.txt_obs.setPlainText(record.get('observations', '') or '')
+
+    def calculate_montant(self):
+        poids = self.val_poids.value()
+        pu = self.val_prix_unit.value()
+        self.val_montant.setValue(poids * pu)
+
+    def save_data(self):
+        date_s_str = self.txt_date_suivi.date().toString("yyyy-MM-dd")
+        date_r_str = self.txt_date_remise.date().toString("yyyy-MM-dd")
+        poids = self.val_poids.value()
+        prix_u = self.val_prix_unit.value()
+        montant = self.val_montant.value()
+        etat = self.cb_etat.currentData()
+        obs = self.txt_obs.toPlainText().strip()
+
+        if self.record:
+            success, _ = data_manager.db.update_record(
+                "Station_Incineration", "id_incineration", self.record['id_incineration'],
+                {
+                    "date_suivi": date_s_str,
+                    "date_remise": date_r_str,
+                    "poids_kg": poids,
+                    "prix_unitaire_kg": prix_u,
+                    "montant_total": montant,
+                    "etat_paiement": etat,
+                    "observations": obs
+                }
+            )
+        else:
+            success = data_manager.banque.add_incineration(
+                date_s_str, date_r_str, poids, prix_u, montant, etat, obs
+            )
+            
+        if success:
+            self.accept()
+        else:
+            QMessageBox.critical(self, "Erreur", "Erreur lors de l'enregistrement.")
+

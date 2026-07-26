@@ -4,6 +4,7 @@ from PySide6.QtGui import QFont
 from .tabs.compte_sga_tab import CompteSGATab
 from .tabs.vehicule_tab import VehiculeServiceTab
 from .tabs.encaissement_tab import EtatEncaissementTab
+from .tabs.incineration_tab import StationIncinerationTab
 
 class BanqueView(QWidget):
     def __init__(self):
@@ -26,5 +27,8 @@ class BanqueView(QWidget):
         
         self.tab_encaissement = EtatEncaissementTab(self)
         self.tabs.addTab(self.tab_encaissement, "État d'Encaissement")
+        
+        self.tab_incineration = StationIncinerationTab(self)
+        self.tabs.addTab(self.tab_incineration, "Station Incinération Benniou")
         
         layout.addWidget(self.tabs)
