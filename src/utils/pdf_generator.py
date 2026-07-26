@@ -1,7 +1,7 @@
 import os
 import json
-from PySide6.QtGui import QPainter, QPageSize, QPageLayout, QColor, QFont, QPixmap, QTextDocument
-from PySide6.QtCore import Qt, QRectF, QMarginsF
+from PySide6.QtGui import QPainter, QPageSize, QPageLayout, QColor, QFont, QPixmap, QTextDocument, QAbstractTextDocumentLayout
+from PySide6.QtCore import Qt, QRectF, QMarginsF, QSizeF
 from PySide6.QtPrintSupport import QPrinter
 
 class PdfGenerator:
@@ -36,87 +36,82 @@ class PdfGenerator:
 
     def generate_pdf(self, output_path, title_suffix, table_html):
         """
-        Generate a PDF with the custom header and an HTML table.
-        output_path: str, the file path to save the PDF.
-        title_suffix: str, appended to doc_title (e.g. " - Octobre 2026").
-        table_html: str, the HTML string of the <table> to render.
+        Generate a multi-page PDF with custom header and footer on EVERY page.
         """
         printer = QPrinter(QPrinter.HighResolution)
         printer.setOutputFormat(QPrinter.PdfFormat)
         printer.setOutputFileName(output_path)
         
-        # Setup page layout
-        page_layout = QPageLayout()
-        page_layout.setPageSize(QPageSize(QPageSize.A4))
-        page_layout.setOrientation(QPageLayout.Portrait)
-        page_layout.setMargins(QMarginsF(0, 0, 0, 0)) # No margins to draw the banner exactly at X=0 Y=0
+        page_layout = QPageLayout(QPageSize(QPageSize.A4), QPageLayout.Portrait, QMarginsF(0, 0, 0, 0))
         printer.setPageLayout(page_layout)
         
         painter = QPainter(printer)
         painter.setRenderHint(QPainter.Antialiasing)
         
-        # Conversions (HighResolution is usually 1200 dpi)
-        # 1 cm = 0.3937 inches
-        # dots per cm = 1200 * 0.3937 = 472.44
-        dpcm = printer.resolution() / 2.54
-        
+        res = printer.resolution()
+        dpcm = res / 2.54
+
         s = self.settings
-        color = QColor(s.get('theme_color', "#007572"))
-        
-        # 1. Draw Banner
-        banner_path = s.get('banner_path', "")
-        if banner_path and os.path.exists(banner_path):
-            img_x = s.get('banner_img_x_cm', 0.0) * dpcm
-            img_y = s.get('banner_img_y_cm', 0.0) * dpcm
-            img_w = s.get('banner_img_w_cm', 21.0) * dpcm
-            img_h = s.get('banner_img_h_cm', 4.8) * dpcm
-            pixmap = QPixmap(banner_path)
-            if not pixmap.isNull():
-                painter.drawPixmap(QRectF(img_x, img_y, img_w, img_h), pixmap, QRectF(pixmap.rect()))
-        
-        # 2. Draw Title
-        total_h_cm = s.get('banner_height_cm', 4.8)
-        title_y = (total_h_cm + 1.0) * dpcm
-        
-        painter.setPen(color)
-        font = QFont("Arial", 16, QFont.Bold)
-        painter.setFont(font)
-        full_title = f"{s.get('doc_title', '')}{title_suffix}"
-        
-        # We will use small margins so the table and title take almost full width
-        table_x = 0.5 * dpcm
-        table_w = 20.0 * dpcm
-        
-        painter.drawText(QRectF(table_x, title_y - dpcm, table_w, 2.0 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, full_title)
-        
-        # Draw NIF and RIP metadata line if present
-        nif = s.get('nif', '')
-        rip = s.get('rip', '')
-        meta_parts = []
-        if nif:
-            meta_parts.append(f"NIF: {nif}")
-        if rip:
-            meta_parts.append(f"RIP: {rip}")
-        if meta_parts:
-            meta_text = "   |   ".join(meta_parts)
-            painter.setPen(Qt.gray)
-            painter.setFont(QFont("Arial", 10, QFont.Normal))
-            painter.drawText(QRectF(table_x, title_y + 0.8 * dpcm, table_w, 0.5 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, meta_text)
-        
-        # 3. Draw Table HTML using QTextDocument
-        table_start_y = s.get('table_start_y_cm', 8.0) * dpcm
-        
-        # Base HTML wrapper to set styles and ensure the table takes full width
+        theme_color = QColor(s.get('theme_color', "#007572"))
+
+        page_w_dots = 21.0 * dpcm
+        page_h_dots = 29.7 * dpcm
+
+        header_height_cm = s.get('banner_height_cm', 4.5)
+        top_margin_dots = (header_height_cm + 0.8) * dpcm
+        bottom_margin_dots = 2.0 * dpcm
+        left_margin_dots = 1.0 * dpcm
+        right_margin_dots = 1.0 * dpcm
+
+        content_w_dots = page_w_dots - left_margin_dots - right_margin_dots
+        content_h_dots = page_h_dots - top_margin_dots - bottom_margin_dots
+
+        # Scale factor (96 DPI standard screen base)
+        scale = res / 96.0
+        doc_w_pts = content_w_dots / scale
+        doc_h_pts = content_h_dots / scale
+
         full_html = f"""
+        <!DOCTYPE html>
         <html>
         <head>
         <style>
-            body {{ font-family: Arial, sans-serif; font-size: 10pt; color: #333; margin: 0; padding: 0; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-            th {{ background-color: {color.name()}; color: white; padding: 5px; text-align: left; font-weight: bold; border: 1px solid #ddd; }}
-            td {{ padding: 4px 5px; border: 1px solid #ddd; }}
-            .right {{ text-align: right; }}
-            .center {{ text-align: center; }}
+            body {{
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
+                color: #1e293b;
+                margin: 0;
+                padding: 0;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 8px;
+                margin-bottom: 12px;
+                page-break-inside: auto;
+            }}
+            tr {{
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }}
+            thead {{
+                display: table-header-group;
+            }}
+            th {{
+                background-color: {theme_color.name()};
+                color: white;
+                padding: 6px;
+                text-align: left;
+                font-weight: bold;
+                border: 1px solid #cbd5e1;
+            }}
+            td {{
+                padding: 5px 6px;
+                border: 1px solid #cbd5e1;
+            }}
+            h2, h3 {{
+                page-break-after: avoid;
+            }}
         </style>
         </head>
         <body>
@@ -124,35 +119,86 @@ class PdfGenerator:
         </body>
         </html>
         """
-        
-        scale = printer.resolution() / 96.0
+
         doc = QTextDocument()
         doc.setHtml(full_html)
-        doc.setTextWidth(table_w / scale)
-        
-        # Translate painter to table start and draw
-        painter.translate(table_x, table_start_y)
-        painter.save()
-        painter.scale(scale, scale)
-        doc.drawContents(painter)
-        painter.restore()
-        painter.translate(-table_x, -table_start_y)
-        
-        # 4. Draw Footer
-        # Since we might have multiple pages if the table is long, 
-        # QTextDocument paginates automatically if we manage the painter translation,
-        # but for simplicity, we assume single page for monthly reports or draw footer at absolute bottom of A4.
-        page_height = 29.7 * dpcm
-        footer_y = page_height - 2.5 * dpcm
-        
-        painter.setPen(Qt.black)
-        font_footer = QFont("Arial", 10, QFont.Bold)
-        painter.setFont(font_footer)
-        painter.drawText(QRectF(table_x, footer_y, 9.0 * dpcm, 1.0 * dpcm), Qt.AlignLeft, s.get('footer_left_label', ''))
-        painter.drawText(QRectF(table_x + 11.0 * dpcm, footer_y, 9.0 * dpcm, 1.0 * dpcm), Qt.AlignRight, s.get('footer_right_label', ''))
-        
+        doc.setTextWidth(doc_w_pts)
+        doc.setPageSize(QSizeF(doc_w_pts, doc_h_pts))
+
+        page_count = doc.pageCount()
+
+        for page_idx in range(page_count):
+            if page_idx > 0:
+                printer.newPage()
+
+            # --------------------------------------------------
+            # 1. DRAW EN-TÊTE (HEADER BANNER) ON EVERY PAGE
+            # --------------------------------------------------
+            banner_path = s.get('banner_path', "")
+            if banner_path and os.path.exists(banner_path):
+                img_x = s.get('banner_img_x_cm', 0.0) * dpcm
+                img_y = s.get('banner_img_y_cm', 0.0) * dpcm
+                img_w = s.get('banner_img_w_cm', 21.0) * dpcm
+                img_h = s.get('banner_img_h_cm', 4.5) * dpcm
+                pixmap = QPixmap(banner_path)
+                if not pixmap.isNull():
+                    painter.drawPixmap(QRectF(img_x, img_y, img_w, img_h), pixmap, QRectF(pixmap.rect()))
+            else:
+                # Default Modern Header Banner
+                painter.fillRect(QRectF(0, 0, page_w_dots, 1.2 * dpcm), theme_color)
+                painter.setPen(Qt.white)
+                painter.setFont(QFont("Arial", 11, QFont.Bold))
+                painter.drawText(QRectF(1.0 * dpcm, 0, page_w_dots - 2.0 * dpcm, 1.2 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, s.get('doc_title', 'MODERNLAM'))
+
+            # Header Title Line
+            title_y = (header_height_cm + 0.1) * dpcm
+            painter.setPen(theme_color)
+            painter.setFont(QFont("Arial", 14, QFont.Bold))
+            full_title = f"{s.get('doc_title', '')}{title_suffix}"
+            painter.drawText(QRectF(left_margin_dots, title_y, content_w_dots, 0.7 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, full_title)
+
+            # NIF / RIP / Subtitle metadata if available
+            nif = s.get('nif', '')
+            rip = s.get('rip', '')
+            meta_parts = []
+            if nif: meta_parts.append(f"NIF: {nif}")
+            if rip: meta_parts.append(f"RIP: {rip}")
+            if meta_parts:
+                meta_text = "   |   ".join(meta_parts)
+                painter.setPen(QColor("#64748b"))
+                painter.setFont(QFont("Arial", 9, QFont.Normal))
+                painter.drawText(QRectF(left_margin_dots, title_y + 0.6 * dpcm, content_w_dots, 0.4 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, meta_text)
+
+            # --------------------------------------------------
+            # 2. DRAW FOOTER ON EVERY PAGE
+            # --------------------------------------------------
+            footer_y = page_h_dots - 1.5 * dpcm
+            painter.setPen(QColor("#334155"))
+            painter.setFont(QFont("Arial", 9, QFont.Bold))
+            painter.drawText(QRectF(left_margin_dots, footer_y, 8.0 * dpcm, 0.8 * dpcm), Qt.AlignLeft | Qt.AlignVCenter, s.get('footer_left_label', 'Signature de l\'Agent'))
+            painter.drawText(QRectF(left_margin_dots + content_w_dots - 8.0 * dpcm, footer_y, 8.0 * dpcm, 0.8 * dpcm), Qt.AlignRight | Qt.AlignVCenter, s.get('footer_right_label', 'Visa Direction'))
+            
+            # Page numbering: Page X / Y
+            painter.setPen(QColor("#64748b"))
+            painter.setFont(QFont("Arial", 8, QFont.Normal))
+            painter.drawText(QRectF(left_margin_dots, footer_y + 0.6 * dpcm, content_w_dots, 0.4 * dpcm), Qt.AlignCenter, f"Page {page_idx + 1} / {page_count}")
+
+            # --------------------------------------------------
+            # 3. DRAW PAGE CONTENT FOR THIS PAGE
+            # --------------------------------------------------
+            painter.save()
+            painter.translate(left_margin_dots, top_margin_dots)
+            painter.scale(scale, scale)
+            painter.translate(0, -page_idx * doc_h_pts)
+            
+            ctx = QAbstractTextDocumentLayout.PaintContext()
+            ctx.clip = QRectF(0, page_idx * doc_h_pts, doc_w_pts, doc_h_pts)
+            doc.documentLayout().draw(painter, ctx)
+            painter.restore()
+
         painter.end()
         return True
+
 
     def generate_analytique_achats_pdf(self, output_path, month_name, year, data):
         """
