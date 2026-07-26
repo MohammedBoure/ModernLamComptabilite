@@ -167,28 +167,39 @@ class StatistiquesTab(QWidget):
         main_layout.addWidget(filter_card)
 
         # ----------------------------------------------------
-        # 2. KPI Summary Cards Grid
+        # 2. KPI Summary Cards Grid (Classic Elegant Panel)
         # ----------------------------------------------------
-        self.cards_layout = QHBoxLayout()
+        self.kpi_container = QFrame()
+        self.kpi_container.setObjectName("kpi_container_frame")
+        self.kpi_container.setStyleSheet("""
+            QFrame#kpi_container_frame {
+                background-color: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+            }
+        """)
+        self.cards_layout = QHBoxLayout(self.kpi_container)
+        self.cards_layout.setContentsMargins(10, 10, 10, 10)
         self.cards_layout.setSpacing(10)
 
-        self.card_hours = self._create_kpi_card("🕒 Total Heures Travaillées", "0.0 h", "#007572")
-        self.card_presents = self._create_kpi_card("📅 Jours Présents", "0 j", "#2e7d32")
-        self.card_absences = self._create_kpi_card("⚠️ Jours Absents", "0 j", "#c62828")
-        self.card_conges = self._create_kpi_card("🏖️ Congés / C.M", "0 j", "#0277bd")
-        self.card_gardes = self._create_kpi_card("🌙 Gardes & Récup", "0 j", "#6a1b9a")
-        self.card_hs = self._create_kpi_card("⏰ Heures Sup", "0.0 h", "#f57c00")
-        self.card_rate = self._create_kpi_card("📊 Taux de Présence", "0.0 %", "#4527a0")
+        self.card_hours = self._create_kpi_card("Heures Travaillées", "0.0 h", "#007572")
+        self.card_presents = self._create_kpi_card("Jours Présents", "0 j", "#15803d")
+        self.card_absences = self._create_kpi_card("Jours Absents", "0 j", "#b91c1c")
+        self.card_conges = self._create_kpi_card("Congés / C.M", "0 j", "#0369a1")
+        self.card_gardes = self._create_kpi_card("Gardes & Récup", "0 j", "#6b21a8")
+        self.card_hs = self._create_kpi_card("Heures Sup", "0.0 h", "#c2410c")
+        self.card_rate = self._create_kpi_card("Taux de Présence", "0.0 %", "#0f766e")
 
-        self.cards_layout.addWidget(self.card_hours)
-        self.cards_layout.addWidget(self.card_presents)
-        self.cards_layout.addWidget(self.card_absences)
-        self.cards_layout.addWidget(self.card_conges)
-        self.cards_layout.addWidget(self.card_gardes)
-        self.cards_layout.addWidget(self.card_hs)
-        self.cards_layout.addWidget(self.card_rate)
+        self.cards_layout.addWidget(self.card_hours, 1)
+        self.cards_layout.addWidget(self.card_presents, 1)
+        self.cards_layout.addWidget(self.card_absences, 1)
+        self.cards_layout.addWidget(self.card_conges, 1)
+        self.cards_layout.addWidget(self.card_gardes, 1)
+        self.cards_layout.addWidget(self.card_hs, 1)
+        self.cards_layout.addWidget(self.card_rate, 1)
 
-        main_layout.addLayout(self.cards_layout)
+        main_layout.addWidget(self.kpi_container)
+
 
         # ----------------------------------------------------
         # 3. Main Views Area (Overview Table vs Detail View)
@@ -246,29 +257,32 @@ class StatistiquesTab(QWidget):
         frame.setStyleSheet(f"""
             QFrame {{
                 background-color: #ffffff;
-                border-left: 5px solid {color_hex};
-                border-top: 1px solid #e0e0e0;
-                border-right: 1px solid #e0e0e0;
-                border-bottom: 1px solid #e0e0e0;
+                border: 1px solid #cbd5e1;
                 border-radius: 6px;
+                padding: 4px;
+            }}
+            QFrame:hover {{
+                border: 1px solid #007572;
+                background-color: #f1f5f9;
             }}
         """)
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(2)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(4)
 
         lbl_t = QLabel(title)
-        lbl_t.setFont(QFont("Arial", 8, QFont.Bold))
-        lbl_t.setStyleSheet("color: #616161;")
+        lbl_t.setStyleSheet("font-size: 11px; color: #64748b; font-weight: bold;")
+        lbl_t.setAlignment(Qt.AlignCenter)
 
         lbl_v = QLabel(default_val)
-        lbl_v.setFont(QFont("Arial", 14, QFont.Bold))
-        lbl_v.setStyleSheet(f"color: {color_hex};")
+        lbl_v.setStyleSheet(f"font-size: 15px; color: {color_hex}; font-weight: bold;")
+        lbl_v.setAlignment(Qt.AlignCenter)
         frame.val_label = lbl_v
 
         layout.addWidget(lbl_t)
         layout.addWidget(lbl_v)
         return frame
+
 
     def populate_employee_combo(self):
         self.cb_employee.blockSignals(True)
