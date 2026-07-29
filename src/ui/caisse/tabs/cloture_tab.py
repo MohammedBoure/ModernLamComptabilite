@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, 
     QTableWidget, QTableWidgetItem, QHeaderView, QPushButton,
-    QLabel, QComboBox, QGroupBox, QTabWidget
+    QLabel, QComboBox, QGroupBox, QTabWidget, QInputDialog, QMessageBox
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont, QColor
@@ -63,13 +63,21 @@ class ClotureCaisseTab(QWidget):
         self.tbl_diff.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tbl_diff.setEditTriggers(QTableWidget.NoEditTriggers)
         
-        self.toolbar_diff = make_table_editable(
-            self.tbl_diff, "Cloture_Caisse", "id_cloture",
-            lambda r: self.tbl_diff.item(r, 0).data(Qt.UserRole) if self.tbl_diff.item(r, 0) else None,
-            ClotureCaisseDialog, self.load_data, self,
-            add_callback=self.add_cloture,
-            add_label="Ajouter"
-        )
+        # Financial closures are append-only; corrections are separate audited reversals.
+        self.toolbar_diff = QWidget()
+        closure_toolbar = QHBoxLayout(self.toolbar_diff)
+        closure_toolbar.setContentsMargins(0, 0, 0, 0)
+        btn_add = QPushButton("Ajouter une cloture")
+        btn_add.clicked.connect(self.add_cloture)
+        btn_close_period = QPushButton("Cloturer le mois")
+        btn_close_period.clicked.connect(self.close_selected_period)
+        btn_reopen_period = QPushButton("Reouvrir le mois")
+        btn_reopen_period.clicked.connect(self.reopen_selected_period)
+        closure_toolbar.addWidget(btn_add)
+        closure_toolbar.addWidget(btn_close_period)
+        closure_toolbar.addWidget(btn_reopen_period)
+        closure_toolbar.addWidget(QLabel("Les clotures sont tracees et ne se modifient pas directement."))
+        closure_toolbar.addStretch()
         diff_layout.addWidget(self.toolbar_diff)
         diff_layout.addWidget(self.tbl_diff)
         
@@ -108,6 +116,38 @@ class ClotureCaisseTab(QWidget):
         if dlg.exec():
             self.load_data()
 
+    def _selected_period(self):
+        month, year = self.get_filter_dates()
+        if not month or not year:
+            QMessageBox.warning(self, "Periode requise", "Selectionnez un mois et une annee.")
+            return None
+        return data_manager.governance.get_or_create_period(f"{year}-{month:02d}-01")
+
+    def close_selected_period(self):
+        period = self._selected_period()
+        if not period:
+            return
+        note, accepted = QInputDialog.getMultiLineText(self, "Cloture mensuelle", "Note de cloture :")
+        if not accepted:
+            return
+        try:
+            data_manager.governance.close_period(period["id_period"], None, note)
+            QMessageBox.information(self, "Periode cloturee", "La periode est maintenant verrouillee.")
+        except (ValueError, PermissionError) as error:
+            QMessageBox.warning(self, "Cloture refusee", str(error))
+
+    def reopen_selected_period(self):
+        period = self._selected_period()
+        if not period:
+            return
+        reason, accepted = QInputDialog.getMultiLineText(self, "Reouverture", "Motif obligatoire :")
+        if not accepted:
+            return
+        try:
+            data_manager.governance.reopen_period(period["id_period"], None, reason)
+            QMessageBox.information(self, "Periode rouverte", "La reouverture a ete enregistree dans le journal d'audit.")
+        except (ValueError, PermissionError) as error:
+            QMessageBox.warning(self, "Reouverture refusee", str(error))
     def load_data(self):
         month, year = self.get_filter_dates()
         

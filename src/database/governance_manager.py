@@ -1,4 +1,4 @@
-﻿"""Period locking, role checks, audit, and accounting-policy services."""
+"""Period locking, role checks, audit, and accounting-policy services."""
 
 from __future__ import annotations
 
@@ -98,6 +98,36 @@ class GovernanceManager:
             (policy_code, effective_date),
         )
 
+    def create_calculation_policy(self, policy_code, version_no, effective_from, definition, notes=None, actor_username="system"):
+        actor = self.assert_can_write(actor_username, {"ADMIN", "DIRECTION", "ACCOUNTANT"})
+        if not policy_code or int(version_no) < 1 or not isinstance(definition, dict):
+            raise ValueError("A policy code, positive version, and structured definition are required.")
+        success, policy_id = self.db.execute(
+            """INSERT INTO Calculation_Policies
+               (policy_code, version_no, effective_from, definition_json, notes)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (policy_code, int(version_no), effective_from, json.dumps(definition, ensure_ascii=False), notes),
+        )
+        if success:
+            self.record_audit(actor, "CALCULATION_POLICY_CREATED", "Calculation_Policies", policy_id, new_values={"policy_code": policy_code, "version": int(version_no)}, reason=notes)
+        return success, policy_id
+
+    def approve_calculation_policy(self, policy_id, actor_username):
+        actor = self.actor(actor_username)
+        if not self.has_role(actor, {"ADMIN", "DIRECTION"}):
+            raise PermissionError("Only direction or an administrator can approve a calculation policy.")
+        policy = self.db.fetch_one("SELECT * FROM Calculation_Policies WHERE id_policy = %s", (policy_id,))
+        if not policy or policy.get("approval_status") != "DRAFT":
+            raise ValueError("Only draft calculation policies can be approved.")
+        success, _ = self.db.execute(
+            """UPDATE Calculation_Policies
+               SET approval_status = 'APPROVED', approved_by = %s, approved_at = NOW()
+               WHERE id_policy = %s AND approval_status = 'DRAFT'""",
+            (actor, policy_id),
+        )
+        if success:
+            self.record_audit(actor, "CALCULATION_POLICY_APPROVED", "Calculation_Policies", policy_id, new_values={"approval_status": "APPROVED"})
+        return success
     def close_period(self, period_id, actor_username, close_note=""):
         actor = self.actor(actor_username)
         if not self.has_role(actor, self.CLOSE_ROLES):
