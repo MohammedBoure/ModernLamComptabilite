@@ -294,6 +294,34 @@ def _apply_governance_schema(cursor):
     cursor.execute("UPDATE Fiches_Paie SET statut = 'VALIDATED' WHERE statut = 'DRAFT'")
 
 
+def _apply_financial_operational_schema(cursor):
+    """Additive fields needed for paid movements, annual SGA, and reversals."""
+    _ensure_column(cursor, "Mouvement_Coffre", "payment_status", "ENUM('PENDING', 'PAID', 'VOID') NOT NULL DEFAULT 'PAID'")
+    _ensure_column(cursor, "Mouvement_Coffre", "remarks", "TEXT NULL")
+    _ensure_column(cursor, "Compte_SGA", "is_void", "TINYINT(1) NOT NULL DEFAULT 0")
+    _ensure_column(cursor, "Compte_SGA", "void_reason", "TEXT NULL")
+    _ensure_column(cursor, "Compte_SGA", "voided_by", "VARCHAR(100) NULL")
+    _ensure_column(cursor, "Compte_SGA", "voided_at", "DATETIME NULL")
+    cursor.execute(
+        """CREATE TABLE IF NOT EXISTS SGA_Opening_Balances (
+            annee YEAR PRIMARY KEY,
+            montant DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+            source_year YEAR NULL,
+            notes TEXT NULL,
+            created_by VARCHAR(100) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_by VARCHAR(100) NULL,
+            updated_at DATETIME NULL
+        ) ENGINE=InnoDB"""
+    )
+    cursor.execute(
+        """INSERT IGNORE INTO SGA_Opening_Balances (annee, montant, notes, created_by)
+            SELECT 2025, entrees, 'Imported legacy opening balance', 'legacy-migration'
+            FROM Compte_SGA
+            WHERE designation = 'Solde Initial 2025' AND date_transaction = '2025-12-31'
+            LIMIT 1"""
+    )
+
 def apply_migrations(connection):
     """Apply each migration once; any error aborts the caller transaction."""
     cursor = connection.cursor()
@@ -309,6 +337,7 @@ def apply_migrations(connection):
         migrations = (
             (1, "legacy_schema_compatibility", (), _apply_legacy_compatibility),
             (2, "accounting_governance", GOVERNANCE_DDL, _apply_governance_schema),
+            (3, "financial_operational_controls", (), _apply_financial_operational_schema),
         )
         for version, name, statements, upgrade in migrations:
             if version in applied:

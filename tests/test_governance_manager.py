@@ -6,6 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "database"))
 from governance_manager import GovernanceManager, PeriodLockedError
+from financial_calculations import calculate_cash_closure, calculate_coffre_summary
 
 
 class FakeDatabase:
@@ -74,5 +75,20 @@ class GovernanceManagerTests(unittest.TestCase):
             admin.reopen_period(7, "admin", "")
 
 
+    def test_cash_closure_uses_real_minus_virtual_for_difference_and_net(self):
+        closure = calculate_cash_closure("120.50", "100.25")
+        self.assertEqual(closure["difference"], 20.25)
+        self.assertEqual(closure["net"], 20.25)
+
+    def test_coffre_formula_uses_paid_sources_and_profitability(self):
+        result = calculate_coffre_summary(
+            {"caisse_cv": 100, "caisse_c": 200, "tpe": 50},
+            {"entrees_supp": 40, "sorties": 70},
+            {"sous_traitants_payes": 30, "conventions_payees": 20},
+            profitability_in=10,
+        )
+        self.assertEqual(result["ca_lam"], 350.0)
+        self.assertEqual(result["coffre_net"], 330.0)
+        self.assertEqual(result["global"], 770.0)
 if __name__ == "__main__":
     unittest.main()

@@ -1,58 +1,136 @@
+"""Bank, SGA, vehicle, and collection operations."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+
+try:
+    from .governance_manager import GovernanceManager
+except ImportError:  # Direct manager execution used by legacy tests/tools.
+    from governance_manager import GovernanceManager
+
+
 class BanqueManager:
     def __init__(self, db_instance):
         self.db = db_instance
+        self.governance = GovernanceManager(db_instance)
 
-    def get_sga_transactions(self):
-        # Retrieve all transactions EXCEPT the hidden 'Solde Initial' transaction
-        query = "SELECT * FROM Vue_Solde_Compte_SGA WHERE designation != 'Solde Initial 2025' ORDER BY date_transaction ASC, id_transaction ASC"
-        return self.db.fetch_all(query)
+    @staticmethod
+    def _year(value=None):
+        if value is None:
+            return date.today().year
+        if isinstance(value, datetime):
+            return value.year
+        if isinstance(value, date):
+            return value.year
+        return int(value)
 
-    def get_solde_initial(self):
-        query = "SELECT entrees FROM Compte_SGA WHERE designation = 'Solde Initial 2025' AND date_transaction = '2025-12-31' LIMIT 1"
-        res = self.db.fetch_one(query)
-        return float(res['entrees']) if res else 0.0
+    def get_sga_transactions(self, year=None):
+        selected_year = self._year(year)
+        return self.db.fetch_all(
+            """SELECT * FROM Compte_SGA
+               WHERE YEAR(date_transaction) = %s AND is_void = 0
+               ORDER BY date_transaction ASC, id_transaction ASC""",
+            (selected_year,),
+        )
 
-    def update_solde_initial(self, montant):
-        # Check if it exists
-        query_check = "SELECT id_transaction FROM Compte_SGA WHERE designation = 'Solde Initial 2025' AND date_transaction = '2025-12-31'"
-        res = self.db.fetch_one(query_check)
-        if res:
-            query = "UPDATE Compte_SGA SET entrees = %s WHERE id_transaction = %s"
-            success, _ = self.db.execute(query, (montant, res['id_transaction']))
-        else:
-            query = "INSERT INTO Compte_SGA (date_transaction, entrees, sorties, designation) VALUES ('2025-12-31', %s, 0, 'Solde Initial 2025')"
-            success, _ = self.db.execute(query, (montant,))
+    def get_solde_initial(self, year=None):
+        selected_year = self._year(year)
+        row = self.db.fetch_one(
+            "SELECT montant FROM SGA_Opening_Balances WHERE annee = %s", (selected_year,)
+        )
+        return float(row["montant"]) if row else 0.0
+
+    def update_solde_initial(self, montant, year=None, actor_username="system", source_year=None, notes=None):
+        selected_year = self._year(year)
+        period = self.governance.assert_writable_period(f"{selected_year}-01-01", actor_username)
+        success, _ = self.db.execute(
+            """INSERT INTO SGA_Opening_Balances
+               (annee, montant, source_year, notes, created_by, updated_by, updated_at)
+               VALUES (%s, %s, %s, %s, %s, %s, NOW())
+               ON DUPLICATE KEY UPDATE montant=VALUES(montant), source_year=VALUES(source_year),
+                   notes=VALUES(notes), updated_by=VALUES(updated_by), updated_at=NOW()""",
+            (selected_year, montant, source_year, notes, actor_username, actor_username),
+        )
+        if success:
+            self.governance.record_audit(
+                actor_username, "SGA_OPENING_BALANCE_SAVED", "SGA_Opening_Balances", selected_year,
+                period["id_period"], new_values={"year": selected_year, "amount": montant, "source_year": source_year}, reason=notes,
+            )
         return success
 
-    def get_solde_actuel(self):
-        query = "SELECT solde_actuel FROM Vue_Solde_Compte_SGA ORDER BY date_transaction DESC, id_transaction DESC LIMIT 1"
-        res = self.db.fetch_one(query)
-        return float(res['solde_actuel']) if res else 0.0
+    def get_solde_actuel(self, year=None):
+        selected_year = self._year(year)
+        row = self.db.fetch_one(
+            """SELECT COALESCE(SUM(entrees - sorties), 0) AS movement_total
+               FROM Compte_SGA WHERE YEAR(date_transaction) = %s AND is_void = 0""",
+            (selected_year,),
+        ) or {}
+        return self.get_solde_initial(selected_year) + float(row.get("movement_total") or 0)
 
-    def add_sga_transaction(self, date_transaction, n_cheque, beneficiaire, entrees, sorties, designation):
-        query = """
-            INSERT INTO Compte_SGA (date_transaction, n_cheque, beneficiaire, entrees, sorties, designation)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        params = (date_transaction, n_cheque, beneficiaire, entrees, sorties, designation)
-        success, _ = self.db.execute(query, params)
+    def add_sga_transaction(
+        self, date_transaction, n_cheque, beneficiaire, entrees, sorties, designation,
+        actor_username="system",
+    ):
+        period = self.governance.assert_writable_period(date_transaction, actor_username)
+        success, entity_id = self.db.execute(
+            """INSERT INTO Compte_SGA
+               (date_transaction, n_cheque, beneficiaire, entrees, sorties, designation, period_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (date_transaction, n_cheque, beneficiaire, entrees, sorties, designation, period["id_period"]),
+        )
+        if success:
+            self.governance.record_audit(
+                actor_username, "SGA_TRANSACTION_CREATED", "Compte_SGA", entity_id, period["id_period"],
+                new_values={"date": str(date_transaction), "entrees": entrees, "sorties": sorties, "designation": designation},
+            )
         return success
 
-    def update_sga_transaction(self, id_transaction, date_transaction, n_cheque, beneficiaire, entrees, sorties, designation):
-        query = """
-            UPDATE Compte_SGA 
-            SET date_transaction=%s, n_cheque=%s, beneficiaire=%s, entrees=%s, sorties=%s, designation=%s
-            WHERE id_transaction=%s
-        """
-        params = (date_transaction, n_cheque, beneficiaire, entrees, sorties, designation, id_transaction)
-        success, _ = self.db.execute(query, params)
+    def update_sga_transaction(
+        self, id_transaction, date_transaction, n_cheque, beneficiaire, entrees, sorties,
+        designation, actor_username="system",
+    ):
+        old = self.db.fetch_one("SELECT * FROM Compte_SGA WHERE id_transaction = %s", (id_transaction,))
+        if not old or old.get("is_void"):
+            raise ValueError("The SGA transaction does not exist or has already been voided.")
+        self.governance.assert_writable_period(old["date_transaction"], actor_username)
+        period = self.governance.assert_writable_period(date_transaction, actor_username)
+        success, _ = self.db.execute(
+            """UPDATE Compte_SGA
+               SET date_transaction=%s, n_cheque=%s, beneficiaire=%s, entrees=%s, sorties=%s,
+                   designation=%s, period_id=%s
+               WHERE id_transaction=%s AND is_void=0""",
+            (date_transaction, n_cheque, beneficiaire, entrees, sorties, designation, period["id_period"], id_transaction),
+        )
+        if success:
+            self.governance.record_audit(
+                actor_username, "SGA_TRANSACTION_UPDATED", "Compte_SGA", id_transaction, period["id_period"],
+                old_values={"date": str(old["date_transaction"]), "entrees": old.get("entrees"), "sorties": old.get("sorties")},
+                new_values={"date": str(date_transaction), "entrees": entrees, "sorties": sorties, "designation": designation},
+                reason="Accounting transaction corrected",
+            )
         return success
 
-    def delete_sga_transaction(self, id_transaction):
-        query = "DELETE FROM Compte_SGA WHERE id_transaction=%s"
-        success, _ = self.db.execute(query, (id_transaction,))
+    def delete_sga_transaction(self, id_transaction, reason, actor_username="system"):
+        """Void a transaction instead of physically deleting financial evidence."""
+        if not (reason or "").strip():
+            raise ValueError("A reason is required to void an SGA transaction.")
+        old = self.db.fetch_one("SELECT * FROM Compte_SGA WHERE id_transaction = %s", (id_transaction,))
+        if not old or old.get("is_void"):
+            raise ValueError("The SGA transaction does not exist or has already been voided.")
+        period = self.governance.assert_writable_period(old["date_transaction"], actor_username)
+        success, _ = self.db.execute(
+            """UPDATE Compte_SGA SET is_void=1, void_reason=%s, voided_by=%s, voided_at=NOW()
+               WHERE id_transaction=%s AND is_void=0""",
+            (reason.strip(), actor_username, id_transaction),
+        )
+        if success:
+            self.governance.record_audit(
+                actor_username, "SGA_TRANSACTION_VOIDED", "Compte_SGA", id_transaction, period["id_period"],
+                old_values={"entrees": old.get("entrees"), "sorties": old.get("sorties"), "designation": old.get("designation")},
+                reason=reason.strip(),
+            )
         return success
-
     def get_vehicule_logs(self):
         query = "SELECT * FROM Vehicule_Service ORDER BY date_suivi DESC LIMIT 50"
         return self.db.fetch_all(query)

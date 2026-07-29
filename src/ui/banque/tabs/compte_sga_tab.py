@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QDialog,
-    QFormLayout, QDoubleSpinBox, QLineEdit, QDialogButtonBox, QDateEdit, QComboBox
+    QFormLayout, QDoubleSpinBox, QLineEdit, QDialogButtonBox, QDateEdit, QComboBox, QInputDialog
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QFont
@@ -99,22 +99,31 @@ class CompteSGATab(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
         
-        current_year = QDate.currentDate().year()
+        self.selected_year = QDate.currentDate().year()
 
-        # Custom Top Header
-        lbl_title = QLabel(f"Etat de Chèque Année {current_year}")
-        lbl_title.setAlignment(Qt.AlignCenter)
+        # Annual SGA balance and its transactions are deliberately scoped to one fiscal year.
+        header_layout = QHBoxLayout()
+        self.lbl_title = QLabel()
+        self.lbl_title.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(16)
         title_font.setBold(True)
-        lbl_title.setFont(title_font)
-        lbl_title.setStyleSheet("color: #1565c0; margin-bottom: 10px;")
-        layout.addWidget(lbl_title)
+        self.lbl_title.setFont(title_font)
+        self.lbl_title.setStyleSheet("color: #1565c0; margin-bottom: 10px;")
+        self.cmb_year = QComboBox()
+        for year in range(self.selected_year - 2, self.selected_year + 3):
+            self.cmb_year.addItem(str(year), year)
+        self.cmb_year.setCurrentText(str(self.selected_year))
+        self.cmb_year.currentIndexChanged.connect(self.on_year_changed)
+        header_layout.addWidget(self.lbl_title, 1)
+        header_layout.addWidget(QLabel("AnnÃ©e :"))
+        header_layout.addWidget(self.cmb_year)
+        layout.addLayout(header_layout)
 
         # Initial Balance Row
         initial_layout = QHBoxLayout()
-        lbl_initial = QLabel("Montant du Compte Le 31/12/2025 :")
-        lbl_initial.setFont(QFont("Arial", 10, QFont.Bold))
+        self.lbl_initial = QLabel()
+        self.lbl_initial.setFont(QFont("Arial", 10, QFont.Bold))
         self.spin_initial = QDoubleSpinBox()
         self.spin_initial.setMaximum(999999999.0)
         self.spin_initial.setButtonSymbols(QDoubleSpinBox.NoButtons)
@@ -124,7 +133,7 @@ class CompteSGATab(QWidget):
         btn_update_initial.setStyleSheet("background-color: #78909c; color: white; border-radius: 4px; padding: 4px 10px;")
         btn_update_initial.clicked.connect(self.on_update_initial)
         
-        initial_layout.addWidget(lbl_initial)
+        initial_layout.addWidget(self.lbl_initial)
         initial_layout.addWidget(self.spin_initial)
         initial_layout.addWidget(btn_update_initial)
         initial_layout.addStretch()
@@ -180,18 +189,25 @@ class CompteSGATab(QWidget):
         
         layout.addWidget(self.tbl_banque)
 
+    def on_year_changed(self):
+        self.selected_year = int(self.cmb_year.currentData())
+        self.load_data()
+
     def load_data(self):
-        # Load balances
-        initial = data_manager.banque.get_solde_initial()
+        selected_year = self.selected_year
+        self.lbl_title.setText(f"Etat de ChÃ¨que AnnÃ©e {selected_year}")
+        self.lbl_initial.setText(f"Montant du Compte au 31/12/{selected_year - 1} :")
+        # Load balances for the selected fiscal year.
+        initial = data_manager.banque.get_solde_initial(selected_year)
         self.spin_initial.blockSignals(True)
         self.spin_initial.setValue(initial)
         self.spin_initial.blockSignals(False)
         
-        actuel = data_manager.banque.get_solde_actuel()
+        actuel = data_manager.banque.get_solde_actuel(selected_year)
         self.lbl_solde_actuel.setText(f"{actuel:,.2f} DA".replace(",", " "))
 
         # Load grid
-        self.current_matrix = data_manager.banque.get_sga_transactions()
+        self.current_matrix = data_manager.banque.get_sga_transactions(selected_year)
         self.tbl_banque.setRowCount(len(self.current_matrix))
         
         for i, row in enumerate(self.current_matrix):
@@ -237,7 +253,7 @@ class CompteSGATab(QWidget):
 
     def on_update_initial(self):
         val = self.spin_initial.value()
-        success = data_manager.banque.update_solde_initial(val)
+        success = data_manager.banque.update_solde_initial(val, self.selected_year)
         if success:
             self.load_data()
         else:
@@ -297,7 +313,13 @@ class CompteSGATab(QWidget):
         matrix_idx = self.tbl_banque.item(row_idx, 0).data(Qt.UserRole)
         data = self.current_matrix[matrix_idx]
         
-        reply = QMessageBox.question(self, "Confirmation", f"Êtes-vous sûr de vouloir supprimer cette transaction ?", QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(self, "Confirmation", "Voulez-vous annuler cette transaction ? Elle restera traÃ§able.", QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
-            data_manager.banque.delete_sga_transaction(data['id_transaction'])
-            self.load_data()
+            reason, accepted = QInputDialog.getText(self, "Motif d'annulation", "Motif obligatoire :")
+            if not accepted:
+                return
+            try:
+                data_manager.banque.delete_sga_transaction(data['id_transaction'], reason)
+                self.load_data()
+            except (ValueError, PermissionError) as error:
+                QMessageBox.warning(self, "Annulation refusÃ©e", str(error))

@@ -109,16 +109,10 @@ class CompteSGADialog(BaseDialog):
     def save_data(self):
         date_str = self.txt_date.date().toString("yyyy-MM-dd")
         if self.record:
-            success, _ = data_manager.db.update_record(
-                "Compte_SGA", "id_transaction", self.record['id_transaction'],
-                {
-                    "date_transaction": date_str,
-                    "n_cheque": self.txt_cheque.text().strip(),
-                    "beneficiaire": self.txt_beneficiaire.text().strip(),
-                    "entrees": self.val_entrees.value(),
-                    "sorties": self.val_sorties.value(),
-                    "designation": self.txt_designation.toPlainText().strip()
-                }
+            success = data_manager.banque.update_sga_transaction(
+                self.record['id_transaction'], date_str, self.txt_cheque.text().strip(),
+                self.txt_beneficiaire.text().strip(), self.val_entrees.value(),
+                self.val_sorties.value(), self.txt_designation.toPlainText().strip(),
             )
         else:
             success = data_manager.banque.add_sga_transaction(
