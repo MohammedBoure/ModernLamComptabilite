@@ -1,7 +1,107 @@
+from datetime import date, datetime
+
+try:
+    from .governance_manager import GovernanceManager
+    from .hr_policies import leave_accrual_days
+except ImportError:  # Direct manager execution used by legacy tests/tools.
+    from governance_manager import GovernanceManager
+    from hr_policies import leave_accrual_days
+
 class HRManager:
     def __init__(self, db_instance):
         self.db = db_instance
 
+    def create_contract(self, id_employe, contract_type, starts_on, ends_on=None, cnas_registered_on=None, notes=None, actor_username="system"):
+        actor = self.governance.assert_can_write(actor_username, {"ADMIN", "HR"})
+        period = self.governance.assert_writable_period(starts_on, actor)
+        if ends_on and str(ends_on) < str(starts_on):
+            raise ValueError("A contract end date cannot precede its start date.")
+        active = self.db.fetch_one(
+            "SELECT id_contract FROM Employee_Contracts WHERE id_employe = %s AND status = 'ACTIVE'", (id_employe,)
+        )
+        if active:
+            raise ValueError("The employee already has an active contract; end or cancel it first.")
+        success, contract_id = self.db.execute(
+            """INSERT INTO Employee_Contracts
+               (id_employe, contract_type, starts_on, ends_on, cnas_registered_on, status, notes)
+               VALUES (%s, %s, %s, %s, %s, 'ACTIVE', %s)""",
+            (id_employe, contract_type, starts_on, ends_on, cnas_registered_on, notes),
+        )
+        if success:
+            self.governance.record_audit(actor, "EMPLOYEE_CONTRACT_CREATED", "Employee_Contracts", contract_id, period["id_period"], new_values={"employee_id": id_employe, "type": contract_type}, reason=notes)
+        return success
+
+    def end_contract(self, contract_id, ends_on, actor_username="system", notes=None):
+        actor = self.governance.assert_can_write(actor_username, {"ADMIN", "HR"})
+        contract = self.db.fetch_one("SELECT * FROM Employee_Contracts WHERE id_contract = %s", (contract_id,))
+        if not contract or contract["status"] != "ACTIVE":
+            raise ValueError("Only an active contract can be ended.")
+        period = self.governance.assert_writable_period(ends_on, actor)
+        success, _ = self.db.execute(
+            "UPDATE Employee_Contracts SET status = 'ENDED', ends_on = %s, notes = COALESCE(%s, notes) WHERE id_contract = %s",
+            (ends_on, notes, contract_id),
+        )
+        if success:
+            self.governance.record_audit(actor, "EMPLOYEE_CONTRACT_ENDED", "Employee_Contracts", contract_id, period["id_period"], old_values={"status": "ACTIVE"}, new_values={"status": "ENDED"}, reason=notes)
+        return success
+
+    def record_leave(self, id_employe, entry_type, days, effective_on, notes=None, actor_username="system"):
+        actor = self.governance.assert_can_write(actor_username, {"ADMIN", "HR"})
+        if entry_type not in {"ACCRUAL", "TAKEN", "ADJUSTMENT"} or float(days) <= 0:
+            raise ValueError("Leave entries require a supported type and a positive number of days.")
+        period = self.governance.assert_writable_period(effective_on, actor)
+        success, leave_id = self.db.execute(
+            """INSERT INTO Leave_Ledger (id_employe, period_id, entry_type, days, effective_on, notes, created_by)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (id_employe, period["id_period"], entry_type, days, effective_on, notes, actor),
+        )
+        if success:
+            self.governance.record_audit(actor, "LEAVE_LEDGER_CREATED", "Leave_Ledger", leave_id, period["id_period"], new_values={"employee_id": id_employe, "entry_type": entry_type, "days": days}, reason=notes)
+        return success
+
+    def accrue_annual_leave(self, id_employe, hire_date, year, monthly_days=2.5, actor_username="system"):
+        hire = hire_date if isinstance(hire_date, date) else datetime.strptime(str(hire_date), "%Y-%m-%d").date()
+        amount = leave_accrual_days(hire, int(year), monthly_days)
+        if amount <= 0:
+            return False
+        return self.record_leave(id_employe, "ACCRUAL", amount, f"{int(year)}-12-31", "Annual leave accrual (day-15 rule)", actor_username)
+
+    def get_leave_balance(self, id_employe, year=None):
+        where = " WHERE id_employe = %s"
+        params = [id_employe]
+        if year:
+            where += " AND YEAR(effective_on) = %s"
+            params.append(year)
+        row = self.db.fetch_one(
+            """SELECT COALESCE(SUM(CASE WHEN entry_type = 'TAKEN' THEN -days ELSE days END), 0) AS balance
+               FROM Leave_Ledger""" + where,
+            tuple(params),
+        ) or {}
+        return float(row.get("balance") or 0)
+
+    def save_payroll_rate(self, rate_code, amount, effective_from, effective_to=None, notes=None, actor_username="system"):
+        actor = self.governance.assert_can_write(actor_username, {"ADMIN", "HR", "ACCOUNTANT"})
+        if float(amount) < 0:
+            raise ValueError("Payroll rates cannot be negative.")
+        period = self.governance.assert_writable_period(effective_from, actor)
+        success, rate_id = self.db.execute(
+            """INSERT INTO Payroll_Rates (rate_code, amount, effective_from, effective_to, approved_by, notes)
+               VALUES (%s, %s, %s, %s, %s, %s)
+               ON DUPLICATE KEY UPDATE amount=VALUES(amount), effective_to=VALUES(effective_to), approved_by=VALUES(approved_by), notes=VALUES(notes)""",
+            (rate_code, amount, effective_from, effective_to, actor, notes),
+        )
+        if success:
+            self.governance.record_audit(actor, "PAYROLL_RATE_SAVED", "Payroll_Rates", rate_id, period["id_period"], new_values={"rate_code": rate_code, "amount": amount}, reason=notes)
+        return success
+
+    def payroll_rate_for(self, rate_code, effective_on):
+        row = self.db.fetch_one(
+            """SELECT amount FROM Payroll_Rates WHERE rate_code = %s AND effective_from <= %s
+               AND (effective_to IS NULL OR effective_to >= %s)
+               ORDER BY effective_from DESC LIMIT 1""",
+            (rate_code, effective_on, effective_on),
+        )
+        return float(row["amount"]) if row else None
     def get_employes(self):
         query = "SELECT id_employe, nom_prenom, fonction, salaire_base, date_embauche FROM Employes"
         return self.db.fetch_all(query)
@@ -242,32 +342,51 @@ class HRManager:
         """
         return self.db.fetch_all(query)
 
-    def add_fiche_paie(self, id_employe, mois, annee, prime, deplacement, garde_nuit, garde_vendredi_jour, 
-                       garde_vendredi_nuit, heures_sup_montant, conge, retenue_absence, penalites, avances, net_a_payer, remarques):
+    def add_fiche_paie(self, id_employe, mois, annee, prime, deplacement, garde_nuit, garde_vendredi_jour,
+                       garde_vendredi_nuit, heures_sup_montant, conge, retenue_absence, penalites, avances, net_a_payer, remarques,
+                       actor_username="system"):
+        actor = self.governance.assert_can_write(actor_username, {"ADMIN", "HR", "ACCOUNTANT"})
+        period = self.governance.assert_writable_period(f"{int(annee)}-{int(mois):02d}-01", actor)
         query = """
-            INSERT INTO Fiches_Paie 
-            (id_employe, mois, annee, prime, deplacement, garde_nuit, garde_vendredi_jour, 
-             garde_vendredi_nuit, heures_sup_montant, conge, retenue_absence, penalites, avances, net_a_payer, remarques)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE 
+            INSERT INTO Fiches_Paie
+            (id_employe, mois, annee, prime, deplacement, garde_nuit, garde_vendredi_jour,
+             garde_vendredi_nuit, heures_sup_montant, conge, retenue_absence, penalites, avances,
+             net_a_payer, remarques, period_id, statut)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'DRAFT')
+            ON DUPLICATE KEY UPDATE
             prime=VALUES(prime), deplacement=VALUES(deplacement), garde_nuit=VALUES(garde_nuit),
             garde_vendredi_jour=VALUES(garde_vendredi_jour), garde_vendredi_nuit=VALUES(garde_vendredi_nuit),
-            heures_sup_montant=VALUES(heures_sup_montant), conge=VALUES(conge), 
-            retenue_absence=VALUES(retenue_absence), penalites=VALUES(penalites), 
-            avances=VALUES(avances), net_a_payer=VALUES(net_a_payer), remarques=VALUES(remarques)
+            heures_sup_montant=VALUES(heures_sup_montant), conge=VALUES(conge),
+            retenue_absence=VALUES(retenue_absence), penalites=VALUES(penalites), avances=VALUES(avances),
+            net_a_payer=VALUES(net_a_payer), remarques=VALUES(remarques), period_id=VALUES(period_id)
         """
         params = (
             id_employe, mois, annee, prime, deplacement, garde_nuit, garde_vendredi_jour,
-            garde_vendredi_nuit, heures_sup_montant, conge, retenue_absence, penalites, avances, net_a_payer, remarques
+            garde_vendredi_nuit, heures_sup_montant, conge, retenue_absence, penalites, avances,
+            net_a_payer, remarques, period["id_period"]
         )
-        success, _ = self.db.execute(query, params)
+        success, entity_id = self.db.execute(query, params)
+        if success:
+            self.governance.record_audit(actor, "PAYROLL_SHEET_SAVED", "Fiches_Paie", entity_id, period["id_period"], new_values={"employee_id": id_employe, "net": net_a_payer, "month": mois, "year": annee}, reason=remarques)
         return success
-
-    def delete_fiche_paie(self, id_employe, mois, annee):
-        query = "DELETE FROM Fiches_Paie WHERE id_employe = %s AND mois = %s AND annee = %s"
-        success, _ = self.db.execute(query, (id_employe, mois, annee))
+    def delete_fiche_paie(self, id_employe, mois, annee, reason, actor_username="system"):
+        """Void payroll evidence; financial payroll sheets are never physically deleted."""
+        if not (reason or "").strip():
+            raise ValueError("A reason is required to void a payroll sheet.")
+        actor = self.governance.assert_can_write(actor_username, {"ADMIN", "HR", "ACCOUNTANT"})
+        period = self.governance.assert_writable_period(f"{int(annee)}-{int(mois):02d}-01", actor)
+        sheet = self.db.fetch_one(
+            "SELECT id_paie, statut FROM Fiches_Paie WHERE id_employe = %s AND mois = %s AND annee = %s",
+            (id_employe, mois, annee),
+        )
+        if not sheet or sheet.get("statut") == "VOID":
+            raise ValueError("The payroll sheet does not exist or has already been voided.")
+        success, _ = self.db.execute(
+            "UPDATE Fiches_Paie SET statut = 'VOID' WHERE id_paie = %s AND statut <> 'VOID'", (sheet["id_paie"],)
+        )
+        if success:
+            self.governance.record_audit(actor, "PAYROLL_SHEET_VOIDED", "Fiches_Paie", sheet["id_paie"], period["id_period"], old_values={"status": sheet.get("statut")}, reason=reason.strip())
         return success
-
     def get_presences_stats_by_period(self, start_date, end_date, id_employe=None):
         """
         Retrieves presence records between start_date and end_date (inclusive).

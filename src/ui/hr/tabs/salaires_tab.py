@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QDialog,
-    QFormLayout, QDoubleSpinBox, QLineEdit, QDialogButtonBox, QComboBox
+    QFormLayout, QDoubleSpinBox, QLineEdit, QDialogButtonBox, QComboBox, QInputDialog
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QFont
@@ -339,7 +339,13 @@ class SalairesTab(QWidget):
         reply = QMessageBox.question(self, "Confirmation", f"Êtes-vous sûr de vouloir réinitialiser la fiche de paie de {data['nom_prenom']} pour ce mois ?",
                                      QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
+            reason, accepted = QInputDialog.getText(self, "Motif d'annulation", "Motif obligatoire :")
+            if not accepted:
+                return
             m = getattr(self, "month", QDate.currentDate().month())
             y = getattr(self, "year", QDate.currentDate().year())
-            data_manager.hr.delete_fiche_paie(data['id_employe'], m, y)
-            self.load_data_filtered()
+            try:
+                data_manager.hr.delete_fiche_paie(data['id_employe'], m, y, reason)
+                self.load_data_filtered()
+            except (ValueError, PermissionError) as error:
+                QMessageBox.warning(self, "Annulation refusÃ©e", str(error))

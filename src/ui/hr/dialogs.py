@@ -450,26 +450,7 @@ class FichePaieDialog(BaseDialog):
             QMessageBox.warning(self, "Attention", "Veuillez d'abord ajouter des employés.")
             return
             
-        if self.record:
-            success, _ = data_manager.db.update_record(
-                "Fiches_Paie", "id_paie", self.record['id_paie'],
-                {
-                    "prime": self.val_prime.value(),
-                    "deplacement": self.val_deplacement.value(),
-                    "garde_nuit": self.val_garde_nuit.value(),
-                    "garde_vendredi_jour": self.val_garde_vj.value(),
-                    "garde_vendredi_nuit": self.val_garde_vn.value(),
-                    "heures_sup_montant": self.val_hs_montant.value(),
-                    "conge": self.val_conge.value(),
-                    "retenue_absence": self.val_retenue.value(),
-                    "penalites": self.val_penalites.value(),
-                    "avances": self.val_avances.value(),
-                    "net_a_payer": self.val_net.value(),
-                    "remarques": self.txt_remarques.text().strip()
-                }
-            )
-        else:
-            success = data_manager.hr.add_fiche_paie(
+        success = data_manager.hr.add_fiche_paie(
                 emp_id, self.txt_mois.value(), self.txt_annee.value(),
                 self.val_prime.value(), self.val_deplacement.value(), self.val_garde_nuit.value(),
                 self.val_garde_vj.value(), self.val_garde_vn.value(), self.val_hs_montant.value(),
