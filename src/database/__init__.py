@@ -8,6 +8,7 @@ from .dashboard_manager import DashboardManager
 from .rapport_manager import RapportManager
 from .governance_manager import GovernanceManager
 from .profitability_manager import ProfitabilityManager
+from services import ExcelImportService
 
 class ComptabiliteDataManager:
     def __init__(self, db_instance):
@@ -21,6 +22,7 @@ class ComptabiliteDataManager:
         self.rapports = RapportManager(db_instance)
         self.governance = GovernanceManager(db_instance)
         self.profitability = ProfitabilityManager(db_instance)
+        self.imports = ExcelImportService(db_instance)
 
 # Initialize the new robust database with connection pooling and schema init
 db = Database()
