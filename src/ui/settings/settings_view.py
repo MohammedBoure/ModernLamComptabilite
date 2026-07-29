@@ -230,10 +230,12 @@ class StockConfigWidget(QWidget):
             }
 
             if existing:
+                data["inclus_etat"] = existing.get("inclus_etat", 1)
                 success, _ = data_manager.db.update_record("Fournisseurs", "id_fournisseur", existing['id_fournisseur'], data)
                 if success:
                     updated += 1
             else:
+                data["inclus_etat"] = 1
                 success = data_manager.fournisseurs.add_fournisseur(data)
                 if success:
                     imported += 1

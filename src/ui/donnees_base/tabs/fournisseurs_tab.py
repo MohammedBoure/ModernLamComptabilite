@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from database import data_manager
 from ui.table_helper import make_table_editable
 from ui.fournisseurs.dialogs import FournisseurDialog
@@ -14,13 +15,14 @@ class DonneesBaseFournisseursTab(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
         
         self.tbl_fournisseurs = QTableWidget()
-        self.tbl_fournisseurs.setColumnCount(4)
+        self.tbl_fournisseurs.setColumnCount(5)
         self.tbl_fournisseurs.setHorizontalHeaderLabels([
-            "ID", "Fournisseur", "Solde Initial", "Lié à Stock"
+            "ID", "Fournisseur", "Solde Initial", "Dans Etat Fournisseurs", "Lié à Stock"
         ])
         self.tbl_fournisseurs.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.tbl_fournisseurs.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_fournisseurs.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tbl_fournisseurs.cellDoubleClicked.connect(self.on_cell_double_clicked)
         
         self.toolbar = make_table_editable(
             self.tbl_fournisseurs, "Fournisseurs", "id_fournisseur",
@@ -45,8 +47,33 @@ class DonneesBaseFournisseursTab(QWidget):
             self.tbl_fournisseurs.setItem(i, 0, item_id)
             self.tbl_fournisseurs.setItem(i, 1, QTableWidgetItem(row['nom_fournisseur']))
             self.tbl_fournisseurs.setItem(i, 2, QTableWidgetItem(f"{float(row['solde_initial'] or 0):.2f}"))
+            
+            is_inclus = row.get('inclus_etat', 1) == 1
+            item_inclus = QTableWidgetItem("Oui" if is_inclus else "Non (Exclu)")
+            item_inclus.setTextAlignment(Qt.AlignCenter)
+            if is_inclus:
+                item_inclus.setForeground(QColor("#2e7d32"))
+            else:
+                item_inclus.setForeground(QColor("#c62828"))
+            self.tbl_fournisseurs.setItem(i, 3, item_inclus)
+            
             linked = "Oui" if row.get('stock_supplier_id') else "Non"
-            self.tbl_fournisseurs.setItem(i, 3, QTableWidgetItem(linked))
+            item_linked = QTableWidgetItem(linked)
+            item_linked.setTextAlignment(Qt.AlignCenter)
+            self.tbl_fournisseurs.setItem(i, 4, item_linked)
+
+    def on_cell_double_clicked(self, row, col):
+        # Quick toggle if double clicking on 'Dans Etat Fournisseurs' column
+        if col == 3:
+            item_id = self.tbl_fournisseurs.item(row, 0)
+            if not item_id:
+                return
+            id_fournisseur = item_id.data(Qt.UserRole)
+            current_item = self.tbl_fournisseurs.item(row, 3)
+            current_is_inclus = "Oui" in (current_item.text() if current_item else "")
+            new_val = 0 if current_is_inclus else 1
+            data_manager.db.update_record("Fournisseurs", "id_fournisseur", id_fournisseur, {"inclus_etat": new_val})
+            self.load_data()
             
     def add_fournisseur(self):
         dlg = FournisseurDialog(self)
