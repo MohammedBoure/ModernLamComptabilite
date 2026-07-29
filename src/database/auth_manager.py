@@ -1,78 +1,123 @@
-import json
+﻿"""Authentication with role-derived access and migration-safe password hashing."""
+
+from __future__ import annotations
+
 import hashlib
+import hmac
+import json
 import logging
+import secrets
+
 from database import data_manager
+
+
+ROLE_SECTIONS = {
+    "ADMIN": ["Dashboard", "HR", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "DonneesBase", "Settings"],
+    "DIRECTION": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports"],
+    "ACCOUNTANT": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports"],
+    "CASHIER": ["Dashboard", "Caisse", "Cloture", "Banque"],
+    "HR": ["Dashboard", "HR", "Rapports"],
+    "VIEWER": ["Dashboard", "Rapports"],
+}
+PASSWORD_ITERATIONS = 310_000
+
 
 class AuthManager:
     @staticmethod
     def hash_password(password):
-        """Return the password as plain text without hashing, as requested."""
-        return password
+        """Store passwords as PBKDF2 records; plain text is never newly written."""
+        salt = secrets.token_bytes(16)
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PASSWORD_ITERATIONS)
+        return "pbkdf2_sha256${}${}${}".format(
+            PASSWORD_ITERATIONS, salt.hex(), digest.hex()
+        )
 
     @staticmethod
-    def check_password(hashed_password, user_password):
-        """Check a plain text password (variable name kept for compatibility)."""
-        return hashed_password == user_password
+    def check_password(stored_password, supplied_password):
+        """Accept legacy plain text once so its account can be upgraded on login."""
+        if not stored_password or supplied_password is None:
+            return False
+        if not stored_password.startswith("pbkdf2_sha256$"):
+            return hmac.compare_digest(str(stored_password), str(supplied_password))
+        try:
+            algorithm, iterations, salt_hex, expected_hex = stored_password.split("$", 3)
+            if algorithm != "pbkdf2_sha256":
+                return False
+            actual = hashlib.pbkdf2_hmac(
+                "sha256", supplied_password.encode("utf-8"), bytes.fromhex(salt_hex), int(iterations)
+            ).hex()
+            return hmac.compare_digest(expected_hex, actual)
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def is_legacy_password(stored_password):
+        return bool(stored_password) and not str(stored_password).startswith("pbkdf2_sha256$")
+
+    @staticmethod
+    def permissions_for_role(role_code):
+        return {"sections": ROLE_SECTIONS.get(role_code or "VIEWER", ROLE_SECTIONS["VIEWER"]), "tabs": {}}
+
+    @staticmethod
+    def _hydrate_user(user):
+        if not user:
+            return None
+        role_code = user.get("role_code") or "VIEWER"
+        user["role_code"] = role_code
+        # Roles are authoritative; legacy JSON can only carry tab-level refinements.
+        try:
+            legacy = json.loads(user.get("permissions") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            legacy = {}
+        user["permissions"] = AuthManager.permissions_for_role(role_code)
+        user["permissions"]["tabs"] = legacy.get("tabs", {}) if isinstance(legacy, dict) else {}
+        return user
 
     @staticmethod
     def initialize_default_admin():
-        """Create a default admin user if no users exist."""
+        """Create a PBKDF2-protected administrator if no users exist."""
         try:
-            result = data_manager.db.fetch_one("SELECT COUNT(*) as count FROM Utilisateurs")
-            
-            if result and result['count'] == 0:
-                admin_pass = 'admin123'
-                admin_permissions = json.dumps({
-                    "sections": ["Dashboard", "HR", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Settings"],
-                    "tabs": {}
-                })
-                
+            result = data_manager.db.fetch_one("SELECT COUNT(*) AS count FROM Utilisateurs")
+            if result and result["count"] == 0:
                 query = """
-                INSERT INTO Utilisateurs (username, password_hash, nom_complet, permissions) 
-                VALUES (%s, %s, %s, %s)
+                    INSERT INTO Utilisateurs (username, password_hash, nom_complet, permissions, role_code, is_active)
+                    VALUES (%s, %s, %s, %s, 'ADMIN', 1)
                 """
-                data_manager.db.execute(query, ('admin', admin_pass, 'Administrateur', admin_permissions))
-                logging.info("Default admin user created.")
-                
-        except Exception as err:
-            logging.error(f"Error initializing default admin: {err}")
+                permissions = json.dumps(AuthManager.permissions_for_role("ADMIN"))
+                data_manager.db.execute(query, ("admin", AuthManager.hash_password("admin123"), "Administrateur", permissions))
+                logging.info("Default administrator account created; change its password before production use.")
+        except Exception as error:
+            logging.error("Error initializing default admin: %s", error)
 
     @staticmethod
     def authenticate(username, password):
-        """Authenticate a user by username and password. Returns user dict on success, None on failure."""
+        """Authenticate an active user and transparently upgrade legacy credentials."""
         try:
-            query = "SELECT * FROM Utilisateurs WHERE username = %s"
-            user = data_manager.db.fetch_one(query, (username,))
-            
-            if user and AuthManager.check_password(user['password_hash'], password):
-                # Parse permissions JSON
-                try:
-                    user['permissions'] = json.loads(user['permissions'])
-                except json.JSONDecodeError:
-                    user['permissions'] = {"sections": [], "tabs": {}}
-                return user
-            
-            return None
-        except Exception as err:
-            logging.error(f"Error during authentication: {err}")
+            user = data_manager.db.fetch_one(
+                "SELECT * FROM Utilisateurs WHERE username = %s AND is_active = 1", (username,)
+            )
+            if not user or not AuthManager.check_password(user.get("password_hash"), password):
+                return None
+            if AuthManager.is_legacy_password(user["password_hash"]):
+                data_manager.db.execute(
+                    "UPDATE Utilisateurs SET password_hash = %s WHERE id_utilisateur = %s",
+                    (AuthManager.hash_password(password), user["id_utilisateur"]),
+                )
+            data_manager.db.current_actor = user["username"]
+            return AuthManager._hydrate_user(user)
+        except Exception as error:
+            logging.error("Error during authentication: %s", error)
             return None
 
     @staticmethod
     def get_user_by_username(username):
-        """Get a user by username without checking password. Returns user dict on success, None on failure."""
         try:
-            query = "SELECT * FROM Utilisateurs WHERE username = %s"
-            user = data_manager.db.fetch_one(query, (username,))
-            
+            user = data_manager.db.fetch_one(
+                "SELECT * FROM Utilisateurs WHERE username = %s AND is_active = 1", (username,)
+            )
             if user:
-                # Parse permissions JSON
-                try:
-                    user['permissions'] = json.loads(user['permissions'])
-                except json.JSONDecodeError:
-                    user['permissions'] = {"sections": [], "tabs": {}}
-                return user
-            
-            return None
-        except Exception as err:
-            logging.error(f"Error getting user by username: {err}")
+                data_manager.db.current_actor = user["username"]
+            return AuthManager._hydrate_user(user)
+        except Exception as error:
+            logging.error("Error getting user by username: %s", error)
             return None

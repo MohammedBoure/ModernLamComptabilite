@@ -49,6 +49,10 @@ class GovernanceManagerTests(unittest.TestCase):
         with self.assertRaises(PeriodLockedError):
             GovernanceManager(database).assert_writable_period(date(2026, 1, 15))
 
+    def test_viewer_cannot_write_in_an_open_period(self):
+        database = FakeDatabase(role="VIEWER")
+        with self.assertRaises(PermissionError):
+            GovernanceManager(database).assert_writable_period("2026-01-15", "viewer")
     def test_close_requires_approved_policy(self):
         database = FakeDatabase(policy=False)
         with self.assertRaisesRegex(ValueError, "approved financial"):

@@ -121,6 +121,8 @@ class EtatEncaissementTab(QWidget):
             gen = PdfGenerator()
             title_suffix = f" - {m:02d}/{y}"
             if gen.generate_pdf(path, title_suffix, html):
-                QMessageBox.information(self, "Succès", "PDF généré avec succès!")
+                period_id = data_manager.exports.period_id_for(m, y)
+                data_manager.exports.register_export("Etat Encaissement", "PDF", path, period_id=period_id)
+                QMessageBox.information(self, "Succes", "PDF genere avec succes.")
             else:
-                QMessageBox.critical(self, "Erreur", "Erreur lors de la génération du PDF.")
+                QMessageBox.critical(self, "Erreur", "Erreur lors de la generation du PDF.")

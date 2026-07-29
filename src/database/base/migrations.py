@@ -17,6 +17,18 @@ SYSTEM_ROLES = (
 )
 
 
+ROLE_PERMISSIONS = (
+    ("ADMIN", "*"),
+    ("DIRECTION", "PERIOD_CLOSE"),
+    ("DIRECTION", "REPORT_EXPORT"),
+    ("ACCOUNTANT", "FINANCIAL_WRITE"),
+    ("ACCOUNTANT", "PERIOD_CLOSE"),
+    ("ACCOUNTANT", "REPORT_EXPORT"),
+    ("CASHIER", "CASH_WRITE"),
+    ("HR", "HR_WRITE"),
+    ("VIEWER", "REPORT_READ"),
+)
+
 def _column_exists(cursor, table_name, column_name):
     cursor.execute(f"SHOW COLUMNS FROM `{table_name}` LIKE %s", (column_name,))
     return cursor.fetchone() is not None
@@ -322,6 +334,12 @@ def _apply_financial_operational_schema(cursor):
             LIMIT 1"""
     )
 
+def _seed_role_permissions(cursor):
+    cursor.executemany(
+        "INSERT IGNORE INTO Role_Permissions (role_code, permission_code) VALUES (%s, %s)",
+        ROLE_PERMISSIONS,
+    )
+
 def apply_migrations(connection):
     """Apply each migration once; any error aborts the caller transaction."""
     cursor = connection.cursor()
@@ -338,6 +356,7 @@ def apply_migrations(connection):
             (1, "legacy_schema_compatibility", (), _apply_legacy_compatibility),
             (2, "accounting_governance", GOVERNANCE_DDL, _apply_governance_schema),
             (3, "financial_operational_controls", (), _apply_financial_operational_schema),
+            (4, "seed_role_permissions", (), _seed_role_permissions),
         )
         for version, name, statements, upgrade in migrations:
             if version in applied:

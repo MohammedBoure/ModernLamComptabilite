@@ -135,40 +135,50 @@ class BanqueManager:
         query = "SELECT * FROM Vehicule_Service ORDER BY date_suivi DESC LIMIT 50"
         return self.db.fetch_all(query)
 
-    def add_vehicule_log(self, date_suivi, kilometrage, montant_carburant, type_carburant, details):
-        # 1. Insert Mouvement_Coffre
+    def add_vehicule_log(self, date_suivi, kilometrage, montant_carburant, type_carburant, details, actor_username="system"):
+        period = self.governance.assert_writable_period(date_suivi, actor_username)
         coffre_query = """
-            INSERT INTO Mouvement_Coffre (date_transaction, type_operation, categorie_operation, montant, designation)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO Mouvement_Coffre
+            (date_transaction, type_operation, categorie_operation, montant, designation, period_id, payment_status)
+            VALUES (%s, 'SORTIE', 'DEPENSE_VEHICULE', %s, %s, %s, 'PAID')
         """
-        coffre_params = (date_suivi, 'SORTIE', 'DEPENSE_VEHICULE', montant_carburant, f"Carburant {type_carburant} ({kilometrage} km) - {details}")
-        success_coffre, lastrowid = self.db.execute(coffre_query, coffre_params)
-
+        designation = f"Carburant {type_carburant} ({kilometrage} km) - {details}"
+        success_coffre, coffre_id = self.db.execute(
+            coffre_query, (date_suivi, montant_carburant, designation, period["id_period"])
+        )
         if not success_coffre:
             return False
-
-        # 2. Insert Vehicule_Service
-        query = """
-            INSERT INTO Vehicule_Service (date_suivi, kilometrage, montant_carburant, type_carburant, details, id_transaction_coffre)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        params = (date_suivi, kilometrage, montant_carburant, type_carburant, details, lastrowid)
-        success, _ = self.db.execute(query, params)
+        success, entity_id = self.db.execute(
+            """INSERT INTO Vehicule_Service
+               (date_suivi, kilometrage, montant_carburant, type_carburant, details, id_transaction_coffre, period_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (date_suivi, kilometrage, montant_carburant, type_carburant, details, coffre_id, period["id_period"]),
+        )
+        if success:
+            self.governance.record_audit(
+                actor_username, "VEHICLE_LOG_CREATED", "Vehicule_Service", entity_id, period["id_period"],
+                new_values={"kilometrage": kilometrage, "montant_carburant": montant_carburant, "type_carburant": type_carburant},
+                reason=details,
+            )
         return success
-
     def get_encaissements(self):
         query = "SELECT * FROM Etat_Encaissement ORDER BY date_encaissement DESC LIMIT 50"
         return self.db.fetch_all(query)
 
-    def add_encaissement(self, date_encaissement, designation, montant, observations):
-        query = """
-            INSERT INTO Etat_Encaissement (date_encaissement, designation, montant, observations)
-            VALUES (%s, %s, %s, %s)
-        """
-        params = (date_encaissement, designation, montant, observations)
-        success, _ = self.db.execute(query, params)
+    def add_encaissement(self, date_encaissement, designation, montant, observations, actor_username="system"):
+        period = self.governance.assert_writable_period(date_encaissement, actor_username)
+        success, entity_id = self.db.execute(
+            """INSERT INTO Etat_Encaissement
+               (date_encaissement, designation, montant, observations, period_id)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (date_encaissement, designation, montant, observations, period["id_period"]),
+        )
+        if success:
+            self.governance.record_audit(
+                actor_username, "COLLECTION_CREATED", "Etat_Encaissement", entity_id, period["id_period"],
+                new_values={"montant": montant, "designation": designation}, reason=observations,
+            )
         return success
-
     # --- Station d'Incinération Benniou ---
     def get_incinerations(self, month=None, year=None):
         query = "SELECT * FROM Station_Incineration"

@@ -129,6 +129,8 @@ class ProfitabiliteTab(QWidget):
         from utils.pdf_generator import PdfGenerator
         gen = PdfGenerator()
         if gen.generate_profitabilite_pdf(path, m_name, y, self.current_summary):
-            QMessageBox.information(self, "Succès", "Rapport Mouvement Profitabilité généré avec succès!")
+            period_id = data_manager.exports.period_id_for(m, y)
+            data_manager.exports.register_export("Mouvement Profitabilite", "PDF", path, period_id=period_id)
+            QMessageBox.information(self, "Succes", "Rapport de profitabilite genere avec succes.")
         else:
-            QMessageBox.critical(self, "Erreur", "Erreur lors de la génération du PDF.")
+            QMessageBox.critical(self, "Erreur", "Erreur lors de la generation du PDF.")

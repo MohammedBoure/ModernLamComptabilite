@@ -178,7 +178,7 @@ class MainWindow(QMainWindow):
         first_allowed = None
         for key, text, path in sections:
             # Check permissions
-            if key not in allowed_sections and "admin" not in self.current_user.get('username', '').lower():
+            if key not in allowed_sections:
                 continue
                 
             if first_allowed is None:
@@ -278,7 +278,7 @@ class MainWindow(QMainWindow):
             elif key == "Caisse":
                 page = CaisseView()
                 if hasattr(page, 'set_permissions'):
-                    if "admin" not in self.current_user.get('username', '').lower():
+                    if self.current_user.get('role_code') != "ADMIN":
                         tabs = self.current_user.get('permissions', {}).get('tabs', {}).get('Caisse')
                         if tabs is not None:
                             page.set_permissions(tabs)

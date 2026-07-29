@@ -431,6 +431,9 @@ class RapportsView(QWidget):
             return
 
         pdf_gen = PdfGenerator()
-        pdf_gen.generate_rapport_comptabilite_pdf(file_path, m_name, y, self.current_report)
-
-        QMessageBox.information(self, "Exportation Réussie", f"Le Rapport de Comptabilité a été généré avec succès :\n{file_path}")
+        if pdf_gen.generate_rapport_comptabilite_pdf(file_path, m_name, y, self.current_report):
+            period_id = data_manager.exports.period_id_for(m, y)
+            data_manager.exports.register_export("Rapport Comptabilite", "PDF", file_path, period_id=period_id)
+            QMessageBox.information(self, "Exportation reussie", f"Le rapport a ete genere :\n{file_path}")
+        else:
+            QMessageBox.critical(self, "Erreur", "Le PDF n'a pas pu etre genere.")
