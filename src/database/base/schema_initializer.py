@@ -1,6 +1,8 @@
 import mysql.connector
 import logging
 
+from .migrations import apply_migrations
+
 """قانون قبل الكتابة هنا أي جدول تضيف او تعدل أي هيكل فيه
  سواء إضغافة أو حدف يجب ان تضاف أيضا تحت الجدول صيغفة alter
   من أجل أن يحصل دلك في تشعيل البرنامج القادم ملاحظة مهة لا يجدلب تجاهلها 
@@ -353,6 +355,8 @@ class SchemaInitializerMixin:
                             pass
                         else:
                             logging.warning(f"Schema warning during query '{query[:30]}...': {err}")
+
+                apply_migrations(conn)
 
                 # Auto-migration check for existing databases
                 for table in ["Fournisseurs", "Partenaires"]:

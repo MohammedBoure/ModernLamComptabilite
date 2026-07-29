@@ -6,6 +6,7 @@ from .partenaire_manager import PartenaireManager
 from .banque_manager import BanqueManager
 from .dashboard_manager import DashboardManager
 from .rapport_manager import RapportManager
+from .governance_manager import GovernanceManager
 
 class ComptabiliteDataManager:
     def __init__(self, db_instance):
@@ -17,6 +18,7 @@ class ComptabiliteDataManager:
         self.banque = BanqueManager(db_instance)
         self.dashboard = DashboardManager(db_instance)
         self.rapports = RapportManager(db_instance)
+        self.governance = GovernanceManager(db_instance)
 
 # Initialize the new robust database with connection pooling and schema init
 db = Database()
