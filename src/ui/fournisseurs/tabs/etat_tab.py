@@ -287,7 +287,13 @@ class SupplierDetailTab(QWidget):
             return
 
         from ui.fournisseurs.dialogs import PaiementFournisseurDialog
-        dlg = PaiementFournisseurDialog(self, id_fournisseur=self.id_fournisseur, id_depense=id_depense)
+        dlg = PaiementFournisseurDialog(
+            self, 
+            id_fournisseur=self.id_fournisseur, 
+            id_depense=id_depense,
+            month=self.parent_tab.month,
+            year=self.parent_tab.year
+        )
         if dlg.exec():
             self.load_data(self.parent_tab.month, self.parent_tab.year)
             self.parent_tab.load_data()

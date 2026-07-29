@@ -115,15 +115,30 @@ class FournisseurManager:
         query = "SELECT * FROM Fournisseurs WHERE id_fournisseur = %s"
         return self.db.fetch_one(query, (id_fournisseur,))
 
-    def get_depenses_list_by_supplier(self, id_fournisseur):
+    def get_depenses_list_by_supplier(self, id_fournisseur, month=None, year=None):
         query = """
-            SELECT d.id_depense, f.nom_fournisseur, d.date_facture, d.montant_total 
+            SELECT 
+                d.id_depense, 
+                f.nom_fournisseur, 
+                d.type_document,
+                d.date_facture, 
+                d.montant_total,
+                IFNULL((SELECT SUM(montant_verse) FROM Paiements_Fournisseurs WHERE id_depense = d.id_depense), 0) AS total_verse
             FROM Depenses_Achats d 
             JOIN Fournisseurs f ON d.id_fournisseur = f.id_fournisseur
             WHERE d.id_fournisseur = %s
-            ORDER BY d.date_facture DESC
         """
-        return self.db.fetch_all(query, (id_fournisseur,))
+        params = [id_fournisseur]
+        if month and year:
+            query += " AND MONTH(d.date_facture) = %s AND YEAR(d.date_facture) = %s"
+            params.extend([month, year])
+        query += " ORDER BY d.date_facture DESC"
+        data = self.db.fetch_all(query, tuple(params))
+        for row in data:
+            row['montant_total'] = float(row['montant_total'] or 0.0)
+            row['total_verse'] = float(row['total_verse'] or 0.0)
+            row['reste'] = max(0.0, row['montant_total'] - row['total_verse'])
+        return data
 
     def get_fournisseurs_list(self):
         query = "SELECT id_fournisseur, nom_fournisseur FROM Fournisseurs ORDER BY nom_fournisseur"
@@ -157,14 +172,29 @@ class FournisseurManager:
             query += " LIMIT 50"
         return self.db.fetch_all(query, tuple(params) if params else None)
 
-    def get_depenses_list(self):
+    def get_depenses_list(self, month=None, year=None):
         query = """
-            SELECT d.id_depense, f.nom_fournisseur, d.date_facture, d.montant_total 
+            SELECT 
+                d.id_depense, 
+                f.nom_fournisseur, 
+                d.type_document,
+                d.date_facture, 
+                d.montant_total,
+                IFNULL((SELECT SUM(montant_verse) FROM Paiements_Fournisseurs WHERE id_depense = d.id_depense), 0) AS total_verse
             FROM Depenses_Achats d 
             JOIN Fournisseurs f ON d.id_fournisseur = f.id_fournisseur
-            ORDER BY d.date_facture DESC
         """
-        return self.db.fetch_all(query)
+        params = []
+        if month and year:
+            query += " WHERE MONTH(d.date_facture) = %s AND YEAR(d.date_facture) = %s"
+            params.extend([month, year])
+        query += " ORDER BY d.date_facture DESC"
+        data = self.db.fetch_all(query, tuple(params) if params else None)
+        for row in data:
+            row['montant_total'] = float(row['montant_total'] or 0.0)
+            row['total_verse'] = float(row['total_verse'] or 0.0)
+            row['reste'] = max(0.0, row['montant_total'] - row['total_verse'])
+        return data
 
     def add_depense(self, id_fournisseur, id_categorie, type_document, date_facture, montant_total, mode_paiement, observation):
         query = """

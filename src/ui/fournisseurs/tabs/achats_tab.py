@@ -54,7 +54,7 @@ class AchatsTab(QWidget):
 
     def add_paiement(self):
         from ui.fournisseurs.dialogs import PaiementFournisseurDialog
-        dlg = PaiementFournisseurDialog(self)
+        dlg = PaiementFournisseurDialog(self, month=self.month, year=self.year)
         if dlg.exec():
             self.load_data(getattr(self, "month", None), getattr(self, "year", None))
 

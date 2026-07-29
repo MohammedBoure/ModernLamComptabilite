@@ -258,12 +258,16 @@ class DepenseFournisseurDialog(BaseDialog):
             QMessageBox.critical(self, "Erreur", "Erreur lors de l'enregistrement.")
 
 class PaiementFournisseurDialog(BaseDialog):
-    def __init__(self, parent=None, record=None, id_fournisseur=None, id_depense=None):
+    def __init__(self, parent=None, record=None, id_fournisseur=None, id_depense=None, month=None, year=None):
         super().__init__("Modifier Paiement Fournisseur" if record else "Enregistrer Paiement Fournisseur", parent)
         self.record = record
+        self.month = month
+        self.year = year
+        self.depenses_map = {}
         
         self.cb_depense = QComboBox()
-        self.load_depenses(id_fournisseur)
+        self.load_depenses(id_fournisseur, month, year)
+        self.cb_depense.currentIndexChanged.connect(self.on_depense_changed)
         
         self.txt_date = QDateEdit()
         self.txt_date.setDate(QDate.currentDate())
@@ -298,16 +302,33 @@ class PaiementFournisseurDialog(BaseDialog):
                 idx = self.cb_depense.findData(id_depense)
                 if idx >= 0:
                     self.cb_depense.setCurrentIndex(idx)
+            self.on_depense_changed()
 
-    def load_depenses(self, id_fournisseur=None):
+    def load_depenses(self, id_fournisseur=None, month=None, year=None):
         if id_fournisseur:
-            depenses = data_manager.fournisseurs.get_depenses_list_by_supplier(id_fournisseur)
+            depenses = data_manager.fournisseurs.get_depenses_list_by_supplier(id_fournisseur, month, year)
         else:
-            depenses = data_manager.fournisseurs.get_depenses_list()
+            depenses = data_manager.fournisseurs.get_depenses_list(month, year)
             
+        self.cb_depense.clear()
+        self.depenses_map = {}
+        
         for d in depenses:
-            label = f"{d['nom_fournisseur']} - {d['date_facture']} ({d['montant_total']:.2f} DZD)"
-            self.cb_depense.addItem(label, d['id_depense'])
+            doc_type = d.get('type_document', 'FACTURE')
+            date_str = str(d.get('date_facture', ''))
+            total = float(d.get('montant_total', 0.0) or 0.0)
+            reste = float(d.get('reste', 0.0) or 0.0)
+            id_d = d['id_depense']
+            
+            label = f"{d['nom_fournisseur']} - {doc_type} du {date_str} | Total: {total:,.2f} DA | Reste à payer: {reste:,.2f} DA"
+            self.cb_depense.addItem(label, id_d)
+            self.depenses_map[id_d] = reste
+
+    def on_depense_changed(self):
+        if not self.record:
+            id_d = self.cb_depense.currentData()
+            if id_d in self.depenses_map:
+                self.val_verse.setValue(self.depenses_map[id_d])
 
     def save_data(self):
         dep_id = self.cb_depense.currentData()
