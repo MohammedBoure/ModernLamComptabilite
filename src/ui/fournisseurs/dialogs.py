@@ -7,6 +7,7 @@ from database.base.stock_connector import load_stock_db_config, get_stock_db_sup
 class FournisseurDialog(BaseDialog):
     def __init__(self, parent=None, record=None):
         super().__init__("Modifier Fournisseur" if record else "Ajouter Fournisseur", parent)
+        self.record = record
         from PySide6.QtWidgets import QLabel, QHBoxLayout, QVBoxLayout, QFormLayout
         self.setMinimumWidth(800)
         
