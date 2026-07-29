@@ -19,7 +19,7 @@ class Database(SchemaInitializerMixin, _DatabaseBase):
     def fetch_all(self, query, params=None):
         try:
             with self.get_db_connection() as conn:
-                cursor = conn.cursor(dictionary=True)
+                cursor = conn.cursor(dictionary=True, buffered=True)
                 cursor.execute(query, params or ())
                 result = cursor.fetchall()
                 cursor.close()
@@ -31,7 +31,7 @@ class Database(SchemaInitializerMixin, _DatabaseBase):
     def fetch_one(self, query, params=None):
         try:
             with self.get_db_connection() as conn:
-                cursor = conn.cursor(dictionary=True)
+                cursor = conn.cursor(dictionary=True, buffered=True)
                 cursor.execute(query, params or ())
                 result = cursor.fetchone()
                 cursor.close()
@@ -43,7 +43,7 @@ class Database(SchemaInitializerMixin, _DatabaseBase):
     def execute(self, query, params=None):
         try:
             with self.get_db_connection() as conn:
-                cursor = conn.cursor()
+                cursor = conn.cursor(buffered=True)
                 cursor.execute(query, params or ())
                 conn.commit()
                 rowcount = cursor.rowcount

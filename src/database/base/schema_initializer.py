@@ -340,7 +340,7 @@ class SchemaInitializerMixin:
     def _initialize_schema(self):
         try:
             with self.get_db_connection() as conn:
-                cursor = conn.cursor()
+                cursor = conn.cursor(buffered=True)
                 cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
 
                 logging.info("Initializing schema tables and migrations...")

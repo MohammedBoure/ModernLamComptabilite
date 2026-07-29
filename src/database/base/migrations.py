@@ -342,7 +342,7 @@ def _seed_role_permissions(cursor):
 
 def apply_migrations(connection):
     """Apply each migration once; any error aborts the caller transaction."""
-    cursor = connection.cursor()
+    cursor = connection.cursor(buffered=True)
     try:
         cursor.execute(
             """CREATE TABLE IF NOT EXISTS Schema_Migrations (
