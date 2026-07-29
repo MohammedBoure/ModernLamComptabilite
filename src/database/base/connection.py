@@ -103,7 +103,7 @@ class _DatabaseBase:
     def _schema_missing(self):
         try:
             with self.get_db_connection() as conn:
-                cursor = conn.cursor()
+                cursor = conn.cursor(buffered=True)
                 # Check for a table that is guaranteed to exist if the schema is initialized
                 cursor.execute("SHOW TABLES LIKE 'Mouvement_Caisse'")
                 if cursor.fetchone() is None:
