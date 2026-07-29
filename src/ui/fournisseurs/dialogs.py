@@ -168,8 +168,6 @@ class DepenseFournisseurDialog(BaseDialog):
         self.record = record
         
         self.cb_fr = QComboBox()
-        self.cb_fr.setEditable(True)
-        self.cb_fr.setPlaceholderText("Sélectionner ou saisir un fournisseur...")
         self.load_fournisseurs()
         
         self.cb_cat = QComboBox()
@@ -201,8 +199,6 @@ class DepenseFournisseurDialog(BaseDialog):
             idx = self.cb_fr.findData(record.get('id_fournisseur'))
             if idx >= 0:
                 self.cb_fr.setCurrentIndex(idx)
-            else:
-                self.cb_fr.setCurrentText(record.get('nom_fournisseur', ''))
             idx_cat = self.cb_cat.findData(record.get('id_categorie'))
             if idx_cat >= 0:
                 self.cb_cat.setCurrentIndex(idx_cat)
@@ -228,24 +224,8 @@ class DepenseFournisseurDialog(BaseDialog):
 
     def save_data(self):
         fr_id = self.cb_fr.currentData()
-        typed_name = self.cb_fr.currentText().strip()
-        
-        if not typed_name:
-            QMessageBox.warning(self, "Attention", "Veuillez saisir ou choisir un fournisseur.")
-            return
-            
         if not fr_id:
-            existing = data_manager.db.fetch_one("SELECT id_fournisseur FROM Fournisseurs WHERE nom_fournisseur = %s", (typed_name,))
-            if existing:
-                fr_id = existing['id_fournisseur']
-            else:
-                data_manager.fournisseurs.add_fournisseur(typed_name, 0.0)
-                new_row = data_manager.db.fetch_one("SELECT id_fournisseur FROM Fournisseurs WHERE nom_fournisseur = %s", (typed_name,))
-                if new_row:
-                    fr_id = new_row['id_fournisseur']
-                    
-        if not fr_id:
-            QMessageBox.critical(self, "Erreur", "Impossible de valider le fournisseur.")
+            QMessageBox.warning(self, "Attention", "Veuillez choisir un fournisseur enregistré dans Données de base.")
             return
             
         cat_name = self.cb_cat.currentText()
