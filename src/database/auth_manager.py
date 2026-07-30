@@ -12,7 +12,7 @@ from database import data_manager
 
 
 ROLE_SECTIONS = {
-    "ADMIN": ["Dashboard", "HR", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "DonneesBase", "Activity", "Settings"],
+    "ADMIN": ["Dashboard", "HR", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "DonneesBase", "Users", "Activity", "Settings"],
     "DIRECTION": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "Activity"],
     "ACCOUNTANT": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports"],
     "CASHIER": ["Dashboard", "Caisse", "Cloture", "Banque"],
