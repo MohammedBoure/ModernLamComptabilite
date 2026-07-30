@@ -19,6 +19,10 @@ SYSTEM_ROLES = (
 
 ROLE_PERMISSIONS = (
     ("ADMIN", "*"),
+    ("DIRECTION", "FINANCIAL_WRITE"),
+    ("DIRECTION", "CASH_WRITE"),
+    ("DIRECTION", "HR_WRITE"),
+    ("DIRECTION", "REPORT_READ"),
     ("DIRECTION", "PERIOD_CLOSE"),
     ("DIRECTION", "REPORT_EXPORT"),
     ("ACCOUNTANT", "FINANCIAL_WRITE"),
@@ -377,6 +381,15 @@ def _apply_activity_tracking_schema(cursor):
     _ensure_index(cursor, "Audit_Events", "idx_audit_section_tab", "`section_code`, `tab_code`")
     _ensure_index(cursor, "Audit_Events", "idx_audit_outcome", "`outcome`")
 
+def _upgrade_direction_permissions(cursor):
+    """Give the partial administrator every operational permission except Users/Activity."""
+    cursor.executemany(
+        "INSERT IGNORE INTO Role_Permissions (role_code, permission_code) VALUES (%s, %s)",
+        tuple(("DIRECTION", permission) for permission in (
+            "FINANCIAL_WRITE", "CASH_WRITE", "HR_WRITE", "REPORT_READ", "PERIOD_CLOSE", "REPORT_EXPORT",
+        )),
+    )
+
 def apply_migrations(connection):
     """Apply each migration once; any error aborts the caller transaction."""
     cursor = connection.cursor(buffered=True)
@@ -395,6 +408,7 @@ def apply_migrations(connection):
             (3, "financial_operational_controls", (), _apply_financial_operational_schema),
             (4, "seed_role_permissions", (), _seed_role_permissions),
             (5, "activity_tracking", (), _apply_activity_tracking_schema),
+            (6, "direction_full_operational_permissions", (), _upgrade_direction_permissions),
         )
         for version, name, statements, upgrade in migrations:
             if version in applied:

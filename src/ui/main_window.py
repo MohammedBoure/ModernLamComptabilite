@@ -285,7 +285,7 @@ class MainWindow(QMainWindow):
             elif key == "Caisse":
                 page = CaisseView()
                 if hasattr(page, 'set_permissions'):
-                    if self.current_user.get('role_code') != "ADMIN":
+                    if self.current_user.get('role_code') not in {"ADMIN", "DIRECTION"}:
                         tabs = self.current_user.get('permissions', {}).get('tabs', {}).get('Caisse')
                         if tabs is not None:
                             page.set_permissions(tabs)

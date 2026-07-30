@@ -13,7 +13,7 @@ from database import data_manager
 
 ROLE_SECTIONS = {
     "ADMIN": ["Dashboard", "HR", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "DonneesBase", "Users", "Activity", "Settings"],
-    "DIRECTION": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports"],
+    "DIRECTION": ["Dashboard", "HR", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "DonneesBase", "Settings"],
     "ACCOUNTANT": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports"],
     "CASHIER": ["Dashboard", "Caisse", "Cloture", "Banque"],
     "HR": ["Dashboard", "HR", "Rapports"],
@@ -70,7 +70,10 @@ class AuthManager:
         except (TypeError, json.JSONDecodeError):
             legacy = {}
         user["permissions"] = AuthManager.permissions_for_role(role_code)
-        user["permissions"]["tabs"] = legacy.get("tabs", {}) if isinstance(legacy, dict) else {}
+        # The partial administrator is intentionally unrestricted inside all
+        # operational sections; ignore legacy tab restrictions for this role.
+        if role_code not in {"ADMIN", "DIRECTION"}:
+            user["permissions"]["tabs"] = legacy.get("tabs", {}) if isinstance(legacy, dict) else {}
         return user
 
     @staticmethod
