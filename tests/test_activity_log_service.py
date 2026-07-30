@@ -59,8 +59,8 @@ class ActivityLogServiceTests(unittest.TestCase):
         self.assertEqual(params[9], "RAPPORTS")
         self.assertIsNone(params[10])
 
-    def test_activity_log_denies_non_management_viewers_and_records_denial(self):
-        database = FakeDatabase(role="VIEWER")
+    def test_activity_log_denies_partial_manager_and_records_denial(self):
+        database = FakeDatabase(role="DIRECTION")
         service = ActivityLogService(database)
         with self.assertRaises(ActivityAccessError):
             service.require_view_access("reader")
@@ -69,7 +69,7 @@ class ActivityLogServiceTests(unittest.TestCase):
         self.assertEqual(database.commands[0][1][8], "DENIED")
 
     def test_list_is_paginated_and_uses_requested_filters(self):
-        database = FakeDatabase()
+        database = FakeDatabase(role="ADMIN")
         result = ActivityLogService(database).list_events(
             "director", {"section_code": "CAISSE", "outcome": "SUCCESS"}, page=2, page_size=50
         )

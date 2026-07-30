@@ -13,8 +13,8 @@ from database import data_manager
 
 
 ROLE_LABELS = {
-    "ADMIN": "Administrateur",
-    "DIRECTION": "Direction",
+    "ADMIN": "Administrateur complet",
+    "DIRECTION": "Administrateur partiel",
     "ACCOUNTANT": "Comptable",
     "CASHIER": "Caissier",
     "HR": "Ressources humaines",

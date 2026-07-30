@@ -15,7 +15,7 @@ class ActivityAccessError(PermissionError):
 
 
 class ActivityLogService:
-    VIEW_ROLES = {"ADMIN", "DIRECTION"}
+    VIEW_ROLES = {"ADMIN"}
     _UNSET = object()
     SENSITIVE_MARKERS = {
         "password", "hash", "token", "secret", "nin", "nss", "adresse",
@@ -60,7 +60,7 @@ class ActivityLogService:
                 actor, "ACTIVITY_LOG_ACCESS_DENIED", "Activity_Log", outcome="DENIED",
                 event_category="AUTHORIZATION", message="Activity log access denied.", actor_role=role,
             )
-            raise ActivityAccessError("Only administration and direction can view the activity log.")
+            raise ActivityAccessError("Only a full administrator can view the activity log.")
         return actor, role
 
     @classmethod
