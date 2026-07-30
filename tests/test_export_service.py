@@ -34,7 +34,7 @@ class ExportServiceTests(unittest.TestCase):
             self.assertIn("Montant", output.read_text(encoding="utf-8-sig"))
         self.assertEqual(len(database.commands), 2)
         self.assertIn("Export_History", database.commands[0][0])
-        self.assertIn("REPORT_EXPORTED", database.commands[1][0])
+        self.assertEqual("REPORT_EXPORTED", database.commands[1][1][1])
 
     def test_period_lookup_is_optional(self):
         service = ExportService(FakeDatabase())

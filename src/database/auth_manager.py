@@ -1,4 +1,4 @@
-﻿"""Authentication with role-derived access and migration-safe password hashing."""
+"""Authentication with role-derived access and migration-safe password hashing."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from database import data_manager
 
 
 ROLE_SECTIONS = {
-    "ADMIN": ["Dashboard", "HR", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "DonneesBase", "Settings"],
-    "DIRECTION": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports"],
+    "ADMIN": ["Dashboard", "HR", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "DonneesBase", "Activity", "Settings"],
+    "DIRECTION": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports", "Activity"],
     "ACCOUNTANT": ["Dashboard", "Caisse", "Cloture", "Fournisseurs", "Partenaires", "Banque", "Rapports"],
     "CASHIER": ["Dashboard", "Caisse", "Cloture", "Banque"],
     "HR": ["Dashboard", "HR", "Rapports"],
@@ -97,6 +97,10 @@ class AuthManager:
                 "SELECT * FROM Utilisateurs WHERE username = %s AND is_active = 1", (username,)
             )
             if not user or not AuthManager.check_password(user.get("password_hash"), password):
+                data_manager.activity.record(
+                    username or "anonymous", "LOGIN_FAILED", "Authentication", outcome="FAILED",
+                    event_category="AUTHENTICATION", message="Invalid username or password.",
+                )
                 return None
             if AuthManager.is_legacy_password(user["password_hash"]):
                 data_manager.db.execute(
@@ -104,11 +108,15 @@ class AuthManager:
                     (AuthManager.hash_password(password), user["id_utilisateur"]),
                 )
             data_manager.db.current_actor = user["username"]
-            return AuthManager._hydrate_user(user)
+            hydrated = AuthManager._hydrate_user(user)
+            data_manager.activity.record(
+                user["username"], "LOGIN_SUCCEEDED", "Authentication", event_category="AUTHENTICATION",
+                message="Authenticated application session started.", actor_role=hydrated.get("role_code"),
+            )
+            return hydrated
         except Exception as error:
             logging.error("Error during authentication: %s", error)
             return None
-
     @staticmethod
     def get_user_by_username(username):
         try:

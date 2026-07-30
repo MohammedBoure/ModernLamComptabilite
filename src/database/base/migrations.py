@@ -39,6 +39,15 @@ def _ensure_column(cursor, table_name, column_name, definition):
         cursor.execute(f"ALTER TABLE `{table_name}` ADD COLUMN `{column_name}` {definition}")
 
 
+def _index_exists(cursor, table_name, index_name):
+    cursor.execute(f"SHOW INDEX FROM `{table_name}` WHERE Key_name = %s", (index_name,))
+    return cursor.fetchone() is not None
+
+
+def _ensure_index(cursor, table_name, index_name, columns):
+    if not _index_exists(cursor, table_name, index_name):
+        cursor.execute(f"ALTER TABLE `{table_name}` ADD INDEX `{index_name}` ({columns})")
+
 def _apply_legacy_compatibility(cursor):
     for name, definition in {
         "nin": "VARCHAR(50) NULL",
@@ -120,9 +129,20 @@ GOVERNANCE_DDL = (
         old_values JSON NULL,
         new_values JSON NULL,
         reason TEXT NULL,
+        outcome ENUM('SUCCESS', 'DENIED', 'FAILED') NOT NULL DEFAULT 'SUCCESS',
+        section_code VARCHAR(100) NULL,
+        tab_code VARCHAR(100) NULL,
+        actor_role VARCHAR(30) NULL,
+        event_category VARCHAR(50) NOT NULL DEFAULT 'BUSINESS',
+        message TEXT NULL,
+        request_id CHAR(36) NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_audit_period (period_id),
-        INDEX idx_audit_entity (entity_type, entity_id)
+        INDEX idx_audit_entity (entity_type, entity_id),
+        INDEX idx_audit_created (created_at),
+        INDEX idx_audit_actor_created (actor_username, created_at),
+        INDEX idx_audit_section_tab (section_code, tab_code),
+        INDEX idx_audit_outcome (outcome)
     ) ENGINE=InnoDB""",
     """CREATE TABLE IF NOT EXISTS Period_Reopen_Requests (
         id_request INT AUTO_INCREMENT PRIMARY KEY,
@@ -340,6 +360,23 @@ def _seed_role_permissions(cursor):
         ROLE_PERMISSIONS,
     )
 
+def _apply_activity_tracking_schema(cursor):
+    for column_name, definition in {
+        "outcome": "ENUM('SUCCESS', 'DENIED', 'FAILED') NOT NULL DEFAULT 'SUCCESS'",
+        "section_code": "VARCHAR(100) NULL",
+        "tab_code": "VARCHAR(100) NULL",
+        "actor_role": "VARCHAR(30) NULL",
+        "event_category": "VARCHAR(50) NOT NULL DEFAULT 'BUSINESS'",
+        "message": "TEXT NULL",
+        "request_id": "CHAR(36) NULL",
+    }.items():
+        _ensure_column(cursor, "Audit_Events", column_name, definition)
+    _ensure_index(cursor, "Audit_Events", "idx_audit_created", "`created_at`")
+    _ensure_index(cursor, "Audit_Events", "idx_audit_period", "`period_id`")
+    _ensure_index(cursor, "Audit_Events", "idx_audit_actor_created", "`actor_username`, `created_at`")
+    _ensure_index(cursor, "Audit_Events", "idx_audit_section_tab", "`section_code`, `tab_code`")
+    _ensure_index(cursor, "Audit_Events", "idx_audit_outcome", "`outcome`")
+
 def apply_migrations(connection):
     """Apply each migration once; any error aborts the caller transaction."""
     cursor = connection.cursor(buffered=True)
@@ -357,6 +394,7 @@ def apply_migrations(connection):
             (2, "accounting_governance", GOVERNANCE_DDL, _apply_governance_schema),
             (3, "financial_operational_controls", (), _apply_financial_operational_schema),
             (4, "seed_role_permissions", (), _seed_role_permissions),
+            (5, "activity_tracking", (), _apply_activity_tracking_schema),
         )
         for version, name, statements, upgrade in migrations:
             if version in applied:

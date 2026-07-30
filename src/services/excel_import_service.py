@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from .activity_log_service import ActivityLogService
 from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
@@ -158,10 +159,10 @@ class ExcelImportService:
             (batch_id,),
         )
         if success:
-            self.db.execute(
-                """INSERT INTO Audit_Events (actor_username, action_code, entity_type, entity_id, reason)
-                   VALUES (%s, 'IMPORT_BATCH_VALIDATED', 'Import_Batches', %s, %s)""",
-                (actor_username, str(batch_id), notes),
+            ActivityLogService(self.db).record(
+                actor_username, "IMPORT_BATCH_VALIDATED", "Import_Batches", batch_id,
+                reason=notes, event_category="IMPORT",
+                message="The staged import batch was validated for application.",
             )
         return success
 
@@ -198,9 +199,9 @@ class ExcelImportService:
                 rejected += 1
         status = "IMPORTED" if rejected == 0 else "REJECTED"
         self.db.execute("UPDATE Import_Batches SET status = %s WHERE id_batch = %s", (status, batch_id))
-        self.db.execute(
-            """INSERT INTO Audit_Events (actor_username, action_code, entity_type, entity_id, new_values)
-               VALUES (%s, 'IMPORT_BATCH_APPLIED', 'Import_Batches', %s, %s)""",
-            (actor_username, str(batch_id), json.dumps({"imported": imported, "rejected": rejected})),
+        ActivityLogService(self.db).record(
+            actor_username, "IMPORT_BATCH_APPLIED", "Import_Batches", batch_id,
+            new_values={"status": status, "imported": imported, "rejected": rejected},
+            event_category="IMPORT", message="The validated import batch was applied.",
         )
         return {"batch_id": batch_id, "status": status, "imported": imported, "rejected": rejected}

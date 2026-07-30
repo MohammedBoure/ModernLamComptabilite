@@ -5,6 +5,8 @@ from __future__ import annotations
 import csv
 import json
 from datetime import datetime
+
+from .activity_log_service import ActivityLogService
 from pathlib import Path
 from typing import Iterable, Mapping
 
@@ -36,11 +38,10 @@ class ExportService:
             (report_name, period_id, export_format, str(path), actor, int(bool(official))),
         )
         if success:
-            self.db.execute(
-                """INSERT INTO Audit_Events
-                   (actor_username, action_code, entity_type, entity_id, period_id, new_values)
-                   VALUES (%s, 'REPORT_EXPORTED', 'Export_History', %s, %s, %s)""",
-                (actor, str(export_id), period_id, json.dumps({"report_name": report_name, "format": export_format}, ensure_ascii=False)),
+            ActivityLogService(self.db).record(
+                actor, "REPORT_EXPORTED", "Export_History", export_id, period_id,
+                new_values={"report_name": report_name, "format": export_format, "path": str(path)},
+                event_category="EXPORT", message="Official report export generated.",
             )
         return success, export_id
 

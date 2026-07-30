@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import date, datetime
+from pathlib import Path
+
+try:
+    from services.activity_log_service import ActivityLogService
+except ImportError:  # Direct manager execution used by legacy tests/tools.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from services.activity_log_service import ActivityLogService
 
 
 class PeriodLockedError(PermissionError):
@@ -17,6 +25,7 @@ class GovernanceManager:
 
     def __init__(self, db_instance):
         self.db = db_instance
+        self.activity = ActivityLogService(db_instance)
 
     @staticmethod
     def _to_date(value):
@@ -45,6 +54,10 @@ class GovernanceManager:
         if actor == "system":
             return actor
         if not self.has_role(actor, permitted_roles or self.WRITE_ROLES):
+            self.activity.record(
+                actor, "WRITE_ACCESS_DENIED", "Authorization", outcome="DENIED",
+                event_category="AUTHORIZATION", message="Write permission denied.",
+            )
             raise PermissionError("The current user is not permitted to create or modify this record.")
         return actor
 
@@ -73,22 +86,15 @@ class GovernanceManager:
             raise PeriodLockedError(f"Accounting period {period['mois']:02}/{period['annee']} is locked.")
         return period
 
-    def record_audit(self, actor_username, action_code, entity_type, entity_id=None, period_id=None, old_values=None, new_values=None, reason=None):
-        actor = self.actor(actor_username)
-        success, _ = self.db.execute(
-            """INSERT INTO Audit_Events
-               (actor_username, action_code, entity_type, entity_id, period_id, old_values, new_values, reason)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            (
-                actor, action_code, entity_type,
-                str(entity_id) if entity_id is not None else None, period_id,
-                json.dumps(old_values, ensure_ascii=False) if old_values is not None else None,
-                json.dumps(new_values, ensure_ascii=False) if new_values is not None else None,
-                reason,
-            ),
+    def record_audit(
+        self, actor_username, action_code, entity_type, entity_id=None, period_id=None,
+        old_values=None, new_values=None, reason=None, outcome="SUCCESS", event_category="BUSINESS", message=None,
+    ):
+        success, _ = self.activity.record(
+            actor_username, action_code, entity_type, entity_id, period_id, old_values, new_values,
+            reason, outcome, event_category, message,
         )
         return success
-
     def approved_policy_for(self, policy_code, effective_date):
         effective_date = self._to_date(effective_date)
         return self.db.fetch_one(
