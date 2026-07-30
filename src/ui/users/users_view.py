@@ -60,7 +60,7 @@ class UserDialog(QDialog):
         if password != self.password_confirm.text():
             raise ValueError("Les deux mots de passe ne correspondent pas.")
         return {
-            "nom_complet": self.full_name.text().strip(),
+            "full_name": self.full_name.text().strip(),
             "username": self.username.text().strip(),
             "role_code": self.role.currentData(),
             "password": password,
@@ -97,8 +97,8 @@ class UsersView(QWidget):
         toolbar.addStretch()
         layout.addLayout(toolbar)
 
-        self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["Identifiant", "Nom complet", "Role", "Statut", "Cree le", "Modifie le"])
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["Identifiant", "Nom complet", "Role", "Statut"])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -123,12 +123,12 @@ class UsersView(QWidget):
         for row_index, user in enumerate(self.current_users):
             values = (
                 user.get("username"), user.get("nom_complet"), ROLE_LABELS.get(user.get("role_code"), user.get("role_code")),
-                "Actif" if user.get("is_active") else "Desactive", user.get("created_at"), user.get("updated_at"),
+                "Actif" if user.get("is_active") else "Desactive",
             )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(str(value or ""))
                 if column == 0:
-                    item.setData(Qt.UserRole, user.get("id_utilisateur"))
+                    item.setData(Qt.UserRole, user.get("user_id"))
                 self.table.setItem(row_index, column, item)
         self.table.resizeColumnsToContents()
 
@@ -153,7 +153,7 @@ class UsersView(QWidget):
             return
         try:
             values = dialog.values()
-            data_manager.users.update_user(user["id_utilisateur"], **values)
+            data_manager.users.update_user(user["user_id"], **values)
             self.load_users()
             QMessageBox.information(self, "Succes", "Utilisateur modifie avec succes.")
         except (PermissionError, ValueError) as error:
@@ -172,7 +172,7 @@ class UsersView(QWidget):
         if answer != QMessageBox.Yes:
             return
         try:
-            data_manager.users.set_active(user["id_utilisateur"], desired)
+            data_manager.users.set_active(user["user_id"], desired)
             self.load_users()
         except (PermissionError, ValueError) as error:
             QMessageBox.warning(self, "Operation refusee", str(error))

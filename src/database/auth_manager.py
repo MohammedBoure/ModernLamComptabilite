@@ -103,9 +103,10 @@ class AuthManager:
                 )
                 return None
             if AuthManager.is_legacy_password(user["password_hash"]):
+                id_column = "id_user" if "id_user" in user else "id_utilisateur"
                 data_manager.db.execute(
-                    "UPDATE Utilisateurs SET password_hash = %s WHERE id_utilisateur = %s",
-                    (AuthManager.hash_password(password), user["id_utilisateur"]),
+                    f"UPDATE Utilisateurs SET password_hash = %s WHERE {id_column} = %s",
+                    (AuthManager.hash_password(password), user.get(id_column)),
                 )
             data_manager.db.current_actor = user["username"]
             hydrated = AuthManager._hydrate_user(user)

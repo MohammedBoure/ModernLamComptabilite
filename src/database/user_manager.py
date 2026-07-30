@@ -20,6 +20,16 @@ class UserManager:
     def __init__(self, db_instance):
         self.db = db_instance
         self.activity = ActivityLogService(db_instance)
+        self._resolved_user_id_column = None
+    def _user_id_column(self):
+        """Support both the legacy ``id_user`` and migrated ``id_utilisateur`` schemas."""
+        if self._resolved_user_id_column is None:
+            try:
+                legacy = self.db.fetch_one("SHOW COLUMNS FROM Utilisateurs LIKE 'id_user'")
+            except Exception:
+                legacy = None
+            self._resolved_user_id_column = "id_user" if legacy else "id_utilisateur"
+        return self._resolved_user_id_column
 
     def _actor(self, actor_username=None):
         return actor_username or getattr(self.db, "current_actor", None) or "system"
@@ -62,8 +72,9 @@ class UserManager:
 
     def list_users(self, actor_username=None):
         self._assert_administrator(actor_username)
+        id_column = self._user_id_column()
         return self.db.fetch_all(
-            """SELECT id_utilisateur, username, nom_complet, role_code, is_active, created_at, updated_at
+            f"""SELECT {id_column} AS user_id, username, nom_complet, role_code, is_active
                FROM Utilisateurs ORDER BY username"""
         )
 
@@ -72,7 +83,8 @@ class UserManager:
         username, full_name, role_code = self._validate_account(
             username, full_name, role_code, password=password, password_required=True
         )
-        if self.db.fetch_one("SELECT id_utilisateur FROM Utilisateurs WHERE username = %s", (username,)):
+        id_column = self._user_id_column()
+        if self.db.fetch_one(f"SELECT {id_column} FROM Utilisateurs WHERE username = %s", (username,)):
             raise ValueError("This username is already in use.")
         success, user_id = self.db.execute(
             """INSERT INTO Utilisateurs (username, password_hash, nom_complet, permissions, role_code, is_active)
@@ -90,11 +102,12 @@ class UserManager:
     def update_user(self, user_id, username, full_name, role_code, password=None, actor_username=None):
         actor = self._assert_administrator(actor_username)
         username, full_name, role_code = self._validate_account(username, full_name, role_code, password=password)
-        user = self.db.fetch_one("SELECT * FROM Utilisateurs WHERE id_utilisateur = %s", (user_id,))
+        id_column = self._user_id_column()
+        user = self.db.fetch_one(f"SELECT * FROM Utilisateurs WHERE {id_column} = %s", (user_id,))
         if not user:
             raise ValueError("Unknown application user.")
         duplicate = self.db.fetch_one(
-            "SELECT id_utilisateur FROM Utilisateurs WHERE username = %s AND id_utilisateur <> %s", (username, user_id)
+            f"SELECT {id_column} FROM Utilisateurs WHERE username = %s AND {id_column} <> %s", (username, user_id)
         )
         if duplicate:
             raise ValueError("This username is already in use.")
@@ -105,7 +118,7 @@ class UserManager:
         if password:
             query += ", password_hash = %s"
             values.append(self.hash_password(password))
-        query += " WHERE id_utilisateur = %s"
+        query += f" WHERE {id_column} = %s"
         values.append(user_id)
         success, _ = self.db.execute(query, tuple(values))
         if success:
@@ -119,7 +132,8 @@ class UserManager:
 
     def set_active(self, user_id, is_active, actor_username=None):
         actor = self._assert_administrator(actor_username)
-        user = self.db.fetch_one("SELECT * FROM Utilisateurs WHERE id_utilisateur = %s", (user_id,))
+        id_column = self._user_id_column()
+        user = self.db.fetch_one(f"SELECT * FROM Utilisateurs WHERE {id_column} = %s", (user_id,))
         if not user:
             raise ValueError("Unknown application user.")
         desired = bool(is_active)
@@ -132,7 +146,7 @@ class UserManager:
             if int(count.get("count") or 0) <= 1:
                 raise ValueError("The last active administrator cannot be deactivated.")
         success, _ = self.db.execute(
-            "UPDATE Utilisateurs SET is_active = %s WHERE id_utilisateur = %s", (int(desired), user_id)
+            f"UPDATE Utilisateurs SET is_active = %s WHERE {id_column} = %s", (int(desired), user_id)
         )
         if success:
             self.activity.record(
