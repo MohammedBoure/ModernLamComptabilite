@@ -84,6 +84,8 @@ def _apply_legacy_compatibility(cursor):
     )
     _ensure_column(cursor, "Utilisateurs", "role_code", "VARCHAR(30) NOT NULL DEFAULT 'ADMIN'")
     _ensure_column(cursor, "Utilisateurs", "is_active", "TINYINT(1) NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "Utilisateurs", "created_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP")
+    _ensure_column(cursor, "Utilisateurs", "updated_at", "DATETIME NULL")
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS presences_remarques (
             id_remarque INT AUTO_INCREMENT PRIMARY KEY,
@@ -366,6 +368,14 @@ def _seed_role_permissions(cursor):
 
 def _apply_activity_tracking_schema(cursor):
     for column_name, definition in {
+        "actor_username": "VARCHAR(100) NULL",
+        "action_code": "VARCHAR(100) NULL",
+        "entity_type": "VARCHAR(100) NULL",
+        "entity_id": "VARCHAR(100) NULL",
+        "period_id": "INT NULL",
+        "old_values": "JSON NULL",
+        "new_values": "JSON NULL",
+        "reason": "TEXT NULL",
         "outcome": "ENUM('SUCCESS', 'DENIED', 'FAILED') NOT NULL DEFAULT 'SUCCESS'",
         "section_code": "VARCHAR(100) NULL",
         "tab_code": "VARCHAR(100) NULL",
@@ -373,8 +383,10 @@ def _apply_activity_tracking_schema(cursor):
         "event_category": "VARCHAR(50) NOT NULL DEFAULT 'BUSINESS'",
         "message": "TEXT NULL",
         "request_id": "CHAR(36) NULL",
+        "created_at": "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
     }.items():
         _ensure_column(cursor, "Audit_Events", column_name, definition)
+    _ensure_index(cursor, "Audit_Events", "idx_audit_entity", "`entity_type`, `entity_id`")
     _ensure_index(cursor, "Audit_Events", "idx_audit_created", "`created_at`")
     _ensure_index(cursor, "Audit_Events", "idx_audit_period", "`period_id`")
     _ensure_index(cursor, "Audit_Events", "idx_audit_actor_created", "`actor_username`, `created_at`")
@@ -389,6 +401,17 @@ def _upgrade_direction_permissions(cursor):
             "FINANCIAL_WRITE", "CASH_WRITE", "HR_WRITE", "REPORT_READ", "PERIOD_CLOSE", "REPORT_EXPORT",
         )),
     )
+
+def ensure_schema_objects(cursor):
+    """Repair missing objects even when a legacy migration marker is present."""
+    _apply_legacy_compatibility(cursor)
+    for statement in GOVERNANCE_DDL:
+        cursor.execute(statement)
+    _apply_governance_schema(cursor)
+    _apply_financial_operational_schema(cursor)
+    _seed_role_permissions(cursor)
+    _apply_activity_tracking_schema(cursor)
+    _upgrade_direction_permissions(cursor)
 
 def apply_migrations(connection):
     """Apply each migration once; any error aborts the caller transaction."""
@@ -421,6 +444,7 @@ def apply_migrations(connection):
                 "INSERT INTO Schema_Migrations (version, name) VALUES (%s, %s)",
                 (version, name),
             )
+        ensure_schema_objects(cursor)
         cursor.executemany("INSERT IGNORE INTO Roles (code, label) VALUES (%s, %s)", SYSTEM_ROLES)
     except mysql.connector.Error:
         logging.exception("Schema migration failed; transaction will be rolled back.")

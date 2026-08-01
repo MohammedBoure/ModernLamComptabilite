@@ -7,6 +7,13 @@ from dotenv import load_dotenv
 
 from .config import get_env_bool, get_external_path
 
+
+def _get_pool_size():
+    try:
+        return max(1, min(32, int(os.getenv("DB_POOL_SIZE", "8"))))
+    except (TypeError, ValueError):
+        return 8
+
 class _DatabaseBase:
     _instance = None
     _pool = None
@@ -37,30 +44,47 @@ class _DatabaseBase:
         self._ensure_database_exists()
 
         if _DatabaseBase._pool is None:
+            pool_size = _get_pool_size()
             try:
                 _DatabaseBase._pool = pooling.MySQLConnectionPool(
                     pool_name="modernlam_pool",
-                    pool_size=32,
+                    pool_size=pool_size,
                     pool_reset_session=True,
                     use_pure=True,
                     auth_plugin='mysql_native_password',
                     **self.db_config
                 )
-                logging.info("Connection pool initialized successfully (Size: 32).")
+                logging.info(f"Connection pool initialized successfully (Size: {pool_size}).")
+            except mysql.connector.Error as e:
+                if getattr(e, 'errno', None) == 1040 or "1040" in str(e):
+                    logging.warning("1040 Too many connections encountered. Retrying pool initialization with fallback size 3...")
+                    try:
+                        _DatabaseBase._pool = pooling.MySQLConnectionPool(
+                            pool_name="modernlam_pool",
+                            pool_size=3,
+                            pool_reset_session=True,
+                            use_pure=True,
+                            auth_plugin='mysql_native_password',
+                            **self.db_config
+                        )
+                        logging.info("Connection pool initialized with fallback size (Size: 3).")
+                    except Exception as fallback_err:
+                        logging.error(f"❌ Failed to initialize Connection Pool with fallback: {fallback_err}")
+                        raise
+                else:
+                    logging.error(f"❌ Failed to initialize Connection Pool: {e}")
+                    raise
             except Exception as e:
                 logging.error(f"❌ Failed to initialize Connection Pool: {e}")
                 raise
 
         self.schema_check_on_startup = get_env_bool(
             "DB_SCHEMA_CHECK_ON_STARTUP",
-            default=False
+            default=True
         )
         schema_missing = self._schema_missing()
-        is_local = self.db_config['host'] in ['127.0.0.1', 'localhost']
-        if schema_missing:
-            logging.info("Database schema is missing. Running initial schema setup.")
-            self._initialize_schema()
-        elif is_local and self.schema_check_on_startup:
+        if schema_missing or (is_local and self.schema_check_on_startup):
+            logging.info("Running database schema check / initial setup.")
             self._initialize_schema()
         else:
             logging.info(
@@ -104,11 +128,20 @@ class _DatabaseBase:
         try:
             with self.get_db_connection() as conn:
                 cursor = conn.cursor(buffered=True)
-                # Check for a table that is guaranteed to exist if the schema is initialized
-                cursor.execute("SHOW TABLES LIKE 'Mouvement_Caisse'")
+                # Check for key tables that are guaranteed to exist if the schema is fully initialized
+                for table in ['Mouvement_Caisse', 'Utilisateurs', 'Audit_Events', 'Roles', 'Schema_Migrations']:
+                    cursor.execute(f"SHOW TABLES LIKE '{table}'")
+                    if cursor.fetchone() is None:
+                        return True
+                
+                # Check for key columns in Utilisateurs
+                cursor.execute("SHOW COLUMNS FROM Utilisateurs LIKE 'is_active'")
                 if cursor.fetchone() is None:
                     return True
-                
+                cursor.execute("SHOW COLUMNS FROM Utilisateurs LIKE 'role_code'")
+                if cursor.fetchone() is None:
+                    return True
+
                 # Check if stock mapping columns are missing to trigger migration
                 cursor.execute("SHOW COLUMNS FROM Fournisseurs LIKE 'stock_supplier_id'")
                 if cursor.fetchone() is None:
@@ -124,8 +157,8 @@ class _DatabaseBase:
                     return True
                 return False
         except mysql.connector.Error as err:
-            logging.warning(f"Could not verify database schema presence: {err}")
-            return False
+            logging.warning(f"Could not verify database schema presence (error: {err}), assuming schema update is needed.")
+            return True
 
     @contextmanager
     def get_db_connection(self):
