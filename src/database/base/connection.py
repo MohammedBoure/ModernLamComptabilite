@@ -83,7 +83,7 @@ class _DatabaseBase:
             default=True
         )
         schema_missing = self._schema_missing()
-        if schema_missing or (is_local and self.schema_check_on_startup):
+        if schema_missing or self.schema_check_on_startup:
             logging.info("Running database schema check / initial setup.")
             self._initialize_schema()
         else:
@@ -91,13 +91,14 @@ class _DatabaseBase:
                 "Schema startup checks skipped. Set DB_SCHEMA_CHECK_ON_STARTUP=true "
                 "in .env to run migrations."
             )
+        self._schema_initialized = schema_missing or self.schema_check_on_startup
         self._initialized = True
 
     @classmethod
     def reset_connection_state(cls):
         instance = cls._instance
         if instance is not None:
-            for attr in ('db_config', 'schema_check_on_startup', '_initialized'):
+            for attr in ('db_config', 'schema_check_on_startup', '_schema_initialized', '_initialized'):
                 if hasattr(instance, attr):
                     try:
                         delattr(instance, attr)

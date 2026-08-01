@@ -4,11 +4,16 @@ import logging
 
 # Ensure src is in sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
+src_root = os.path.dirname(current_dir)
 project_root = os.path.dirname(os.path.dirname(current_dir))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+for path in (src_root, project_root):
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
-from src.database.base.database import Database
+try:
+    from database import data_manager
+except ModuleNotFoundError:
+    from src.database import data_manager
 
 def init_database():
     """
@@ -19,14 +24,12 @@ def init_database():
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     
     try:
-        # Re-initialize the connection state just in case it's already loaded
-        Database.reset_connection_state()
-        
-        # Instantiating Database ensures the DB exists (creates if missing)
-        db = Database()
-        
-        # Explicitly call _initialize_schema to ensure tables, views, and migrations run
-        db._initialize_schema()
+        # Reuse the application's singleton so initialization does not create
+        # a second connection pool or invalidate data_manager.db.
+        db = data_manager.db
+        if not getattr(db, "_schema_initialized", False):
+            db._initialize_schema()
+            db._schema_initialized = True
         
         print("Database initialized successfully from schema_initializer.py.")
         return True

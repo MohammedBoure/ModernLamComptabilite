@@ -457,3 +457,4 @@ class SchemaInitializerMixin:
 
         except mysql.connector.Error as err:
             logging.error(f"❌ Failed to initialize schema: {err}")
+            raise

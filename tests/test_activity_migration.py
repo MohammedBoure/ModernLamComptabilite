@@ -33,6 +33,9 @@ class LegacyAuditCursor:
     def execute(self, statement, parameters=None):
         self.statements.append((statement, parameters))
 
+    def executemany(self, statement, parameters):
+        self.statements.append((statement, parameters))
+
     @staticmethod
     def fetchone():
         return None
@@ -48,10 +51,25 @@ class ActivityMigrationTests(unittest.TestCase):
         ddl = "\n".join(statement for statement, _ in cursor.statements)
         for column in ("outcome", "section_code", "tab_code", "actor_role", "event_category", "message", "request_id"):
             self.assertIn(f"ADD COLUMN `{column}`", ddl)
-        for index in ("idx_audit_period", "idx_audit_created", "idx_audit_actor_created", "idx_audit_section_tab", "idx_audit_outcome"):
+        for index in ("idx_audit_entity", "idx_audit_period", "idx_audit_created", "idx_audit_actor_created", "idx_audit_section_tab", "idx_audit_outcome"):
             self.assertIn(f"ADD INDEX `{index}`", ddl)
         self.assertNotIn("DROP ", ddl.upper())
         self.assertNotIn("DELETE ", ddl.upper())
+
+    def test_reconciliation_repairs_missing_governance_objects(self):
+        migrations = load_migrations_module()
+        cursor = LegacyAuditCursor()
+
+        migrations.ensure_schema_objects(cursor)
+
+        ddl = "\n".join(statement for statement, _ in cursor.statements)
+        self.assertIn("CREATE TABLE IF NOT EXISTS Audit_Events", ddl)
+        self.assertIn("CREATE TABLE IF NOT EXISTS Accounting_Periods", ddl)
+        self.assertIn("ADD COLUMN `role_code`", ddl)
+        self.assertIn("ADD COLUMN `is_active`", ddl)
+        self.assertIn("ADD COLUMN `outcome`", ddl)
+        self.assertIn("Role_Permissions", ddl)
+        self.assertNotIn("DROP ", ddl.upper())
 
 
 if __name__ == "__main__":
